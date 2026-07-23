@@ -347,8 +347,10 @@ app.post('/api/basqet/pay-initiate', paymentLimiter, async (req, res) => {
     return res.status(400).json({ error: 'transactionId and currencyId are required' });
   }
 
+  console.log('[PAY-INITIATE] Received transactionId:', transactionId, 'currencyId:', currencyId);
   try {
     const tx = await db.get('SELECT * FROM transactions WHERE reference = ?', [transactionId]);
+    console.log('[PAY-INITIATE] Found transaction row:', tx);
     if (!tx) return res.status(404).json({ error: 'Transaction not found' });
     if (tx.status !== 'INITIATED') return res.status(409).json({ error: 'Transaction already in progress' });
 
