@@ -1,7 +1,7 @@
 const { Resend } = require('resend');
 const QRCode = require('qrcode');
 
-const FROM_EMAIL = process.env.FROM_EMAIL || 'tickets@stableflow.io';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'onboarding@resend.dev';
 
 // Lazily instantiated so server starts without throwing when key is absent
 let _resend = null;
