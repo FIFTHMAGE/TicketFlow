@@ -477,7 +477,8 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
               customerEmail: tx.customer_email,
               customerName: tx.customer_name,
               description: `Ticket Purchase for ${tx.customer_name}`,
-              currency: 'NGN'
+              currency: 'NGN',
+              paymentChannels: ['CARD', 'BANK_TRANSFER']
             })
           });
 
