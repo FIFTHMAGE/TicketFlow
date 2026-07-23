@@ -170,6 +170,7 @@ function openCheckout(eventId, price) {
   // Set interactive ticket price
   document.getElementById('ticket-interactive-price').innerText = `₦${price.toLocaleString()}`;
 
+  document.getElementById('checkout-title').innerText = 'Select Payment Method';
   document.getElementById('checkout-modal').classList.add('active');
   document.getElementById('checkout-step-init').classList.remove('hidden');
   document.getElementById('checkout-step-pay').classList.add('hidden');
@@ -258,6 +259,7 @@ async function initiatePayment(currencyId) {
       const qrBox = document.getElementById('qr-code-box');
       qrBox.innerHTML = `<div class="mock-qr">${details.ticker} QR</div>`;
 
+      document.getElementById('checkout-title').innerText = 'Complete Payment';
       document.getElementById('checkout-step-init').classList.add('hidden');
       document.getElementById('checkout-step-pay').classList.remove('hidden');
     }
@@ -332,6 +334,7 @@ async function initiateNombaPayment() {
         </div>
       `;
 
+      document.getElementById('checkout-title').innerText = 'Complete Payment';
       document.getElementById('checkout-step-init').classList.add('hidden');
       document.getElementById('checkout-step-pay').classList.remove('hidden');
     }
