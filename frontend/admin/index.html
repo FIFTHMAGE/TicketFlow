@@ -3,97 +3,273 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StableFlow Ledger & Batch Admin Console</title>
+  <title>StableFlow Ledger & Batch Console</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --ink:#0B0D0A;
+      --charcoal:#171912;
+      --charcoal-2:#1F221A;
+      --cream:#F3EFE3;
+      --cream-2:#E9E3D2;
+      --green:#92CB3C;
+      --green-dim:#6E9A2C;
+      --sand:#C9C2AC;
+      --off-white:#EDEDE6;
+      --line: rgba(237,237,230,0.12);
+    }
+
+    *{box-sizing:border-box;}
+    body{
+      margin:0;
+      background:var(--ink);
+      color:var(--off-white);
+      font-family:'Inter', sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+    h1,h2,h3{
+      font-family:'Space Grotesk', sans-serif;
+      margin:0;
+      letter-spacing:-0.02em;
+    }
+    .mono{
+      font-family:'Courier Prime', monospace;
+    }
+    
+    /* Nav */
+    nav{
+      position:sticky;
+      top:0;
+      z-index:50;
+      background:rgba(11,13,10,0.85);
+      backdrop-filter:blur(10px);
+      border-bottom:1px solid var(--line);
+    }
+    .nav-inner{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:20px 32px;
+      max-width:1200px;
+      margin:0 auto;
+    }
+    .logo{
+      font-family:'Space Grotesk', sans-serif;
+      font-weight:700;
+      font-size:1.15rem;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .logo-mark{
+      width:22px;
+      height:13px;
+      background: var(--green);
+      border-radius: 3px;
+    }
+
+    .btn-primary{
+      background:var(--green);
+      color:var(--ink);
+      padding:10px 20px;
+      border-radius:6px;
+      font-weight:600;
+      font-size:0.88rem;
+      border:none;
+      cursor:pointer;
+      display:inline-block;
+      text-decoration:none;
+    }
+    .btn-primary:hover{background:#a3dc4c;}
+    
+    .btn-ghost{
+      border:1px solid var(--line);
+      color:var(--off-white);
+      padding:10px 20px;
+      border-radius:6px;
+      font-weight:500;
+      font-size:0.88rem;
+      cursor:pointer;
+      background:transparent;
+    }
+    .btn-ghost:hover{background:rgba(255,255,255,0.03);}
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background-color: rgba(146, 203, 60, 0.1);
+      border: 1px solid rgba(146, 203, 60, 0.2);
+      color: var(--green);
+      padding: 6px 14px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .status-indicator-green {
+      width: 8px;
+      height: 8px;
+      background-color: var(--green);
+      border-radius: 50%;
+    }
+
+    /* Layout */
+    .dashboard-layout {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 32px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 32px;
+    }
+    @media (max-width: 900px) {
+      .dashboard-layout { grid-template-columns: 1fr; }
+    }
+
+    /* Cards / Mockups */
+    .panel-section {
+      background: var(--charcoal);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 32px;
+      margin-bottom: 32px;
+    }
+    .panel-section h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 12px;
+    }
+    .panel-label {
+      font-family: 'Courier Prime', monospace;
+      color: var(--green);
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      margin-bottom: 14px;
+      display: block;
+    }
+
+    /* Accounts Grid */
+    .accounts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .account-card {
+      background: var(--charcoal-2);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .account-title {
+      font-size: 0.8rem;
+      color: var(--sand);
+      margin-bottom: 8px;
+    }
+    .account-balance {
+      font-family: 'Courier Prime', monospace;
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+    .account-balance.settlement { color: #5bc0be; }
+    .account-balance.revenue { color: var(--green); }
+    .account-balance.payable { color: #e9d758; }
+
+    /* Tables */
+    .table-wrapper {
+      max-height: 250px;
+      overflow-y: auto;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    .data-table th, .data-table td {
+      padding: 10px 12px;
+      font-size: 0.82rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .data-table th {
+      color: var(--sand);
+      font-weight: 600;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .font-mono-table td {
+      font-family: 'Courier Prime', monospace;
+    }
+
+    .badge-status {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-status.completed { background-color: rgba(146, 203, 60, 0.15); color: var(--green); }
+    .badge-status.processing { background-color: rgba(91, 192, 190, 0.15); color: #5bc0be; }
+    .badge-status.pending { background-color: rgba(233, 215, 88, 0.15); color: #e9d758; }
+    .badge-status.failed { background-color: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+    .text-center { text-align: center; }
+    .text-muted { color: var(--sand); }
+  </style>
 </head>
 <body>
 
-  <header class="app-header">
-    <div class="header-logo">
-      <div class="logo-orb"></div>
-      <h1>StableFlow <span>Admin Console</span></h1>
+  <nav>
+    <div class="nav-inner">
+      <div class="logo">
+        <div class="logo-mark"></div>
+        stub <span style="font-size: 0.75rem; color: var(--sand); font-weight: normal; margin-left: 8px;">[Console]</span>
+      </div>
+      <div style="display: flex; gap: 15px; align-items: center;">
+        <span class="status-badge" id="reconciliation-status">
+          <span class="status-indicator-green"></span> Reconciled
+        </span>
+        <button class="btn-ghost" onclick="logout()">Sign Out</button>
+      </div>
     </div>
-    <div class="header-status">
-      <span class="status-badge" id="reconciliation-status">
-        <span class="status-indicator-green"></span> Reconciled
-      </span>
-      <button class="action-btn borderless" style="margin-left: 15px;" onclick="logout()">Sign Out</button>
-    </div>
-  </header>
+  </nav>
 
   <main class="dashboard-layout">
-    <!-- Left Column: Accounts and Actions -->
-    <section class="column-ledger">
-      <div class="section-title-wrapper flex-space">
-        <div>
-          <h2 class="section-heading">Ledger Accounts</h2>
-          <p class="section-subheading">Source of truth real-time asset and liability pools</p>
+    <!-- Left: Accounts & Actions -->
+    <div>
+      <div class="panel-section">
+        <span class="panel-label">Settlement Pools</span>
+        <div class="accounts-grid" id="accounts-grid">
+          <div class="account-card">Loading...</div>
         </div>
-        <div style="display: flex; gap: 10px;">
-          <button class="action-btn borderless glow" onclick="runReconciliationJob()">Run Reconciliation</button>
-          <button class="action-btn glow" onclick="triggerSettlementBatch()">Trigger Payout Batch</button>
+        <div style="display: flex; gap: 12px; margin-top: 10px;">
+          <button class="btn-primary" onclick="triggerSettlementBatch()">Run Payout Batch</button>
+          <button class="btn-ghost" onclick="runReconciliationJob()">Audit Reconciliation</button>
         </div>
       </div>
 
-      <!-- Ledger Accounts Grid -->
-      <div class="accounts-grid" id="accounts-grid">
-        <div class="loading-spinner">Loading accounts...</div>
-      </div>
-
-      <!-- Reconciliation Flags Panel -->
-      <div class="panel-section glass">
-        <h3 style="color: #ef4444; display: flex; align-items: center; gap: 8px;">
-          ⚠️ Reconciliation Flags & Mismatch Alerts
-        </h3>
-        <div class="batches-list-wrapper">
+      <div class="panel-section">
+        <h3 style="color: #ef4444;">Reconciliation Flags</h3>
+        <div class="table-wrapper">
           <table class="data-table">
             <thead>
               <tr>
-                <th>Reference</th>
+                <th>Ref</th>
                 <th>Type</th>
                 <th>Diff</th>
                 <th>Description</th>
               </tr>
             </thead>
             <tbody id="flags-table-body">
-              <tr>
-                <td colspan="4" class="text-center text-muted">No reconciliation flags.</td>
-              </tr>
+              <tr><td colspan="4" class="text-center text-muted">No flags detected.</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <!-- Batches & Payouts List -->
-      <div class="panel-section glass">
-        <h3>Settlement Payout Batches</h3>
-        <div class="batches-list-wrapper">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Batch ID</th>
-                <th>Status</th>
-                <th>Created At</th>
-              </tr>
-            </thead>
-            <tbody id="batches-table-body">
-              <tr>
-                <td colspan="3" class="text-center text-muted">No batches run yet.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Pending High-Value Approvals -->
-      <div class="panel-section glass">
-        <h3 style="color: #fbbf24; display: flex; align-items: center; gap: 8px;">
-          🔑 Payout Approvals Required (₦5,000,000+)
-        </h3>
-        <div class="batches-list-wrapper">
+      <div class="panel-section">
+        <h3>Payout Approvals Required (₦5,000,000+)</h3>
+        <div class="table-wrapper">
           <table class="data-table">
             <thead>
               <tr>
@@ -105,26 +281,36 @@
               </tr>
             </thead>
             <tbody id="approvals-table-body">
-              <tr>
-                <td colspan="5" class="text-center text-muted">No payouts pending authorization.</td>
-              </tr>
+              <tr><td colspan="5" class="text-center text-muted">No payouts pending authorization.</td></tr>
             </tbody>
           </table>
         </div>
       </div>
-    </section>
 
-    <!-- Right Column: Ledger Journal entries and transactions -->
-    <section class="column-ledger">
-      <div class="section-title-wrapper">
-        <h2 class="section-heading">Ledger Entries & Transactions</h2>
-        <p class="section-subheading">Double-entry audit logs and sales items</p>
+      <div class="panel-section">
+        <h3>Settlement Batches</h3>
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Batch ID</th>
+                <th>Status</th>
+                <th>Created At</th>
+              </tr>
+            </thead>
+            <tbody id="batches-table-body">
+              <tr><td colspan="3" class="text-center text-muted">No batches run yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
+    </div>
 
-      <!-- Transactions List -->
-      <div class="panel-section glass" style="margin-bottom: 20px;">
+    <!-- Right: Ledger Entries & Transactions -->
+    <div>
+      <div class="panel-section">
         <h3>Sales Transactions</h3>
-        <div class="ledger-journal-wrapper" style="max-height: 250px;">
+        <div class="table-wrapper" style="max-height: 300px;">
           <table class="data-table">
             <thead>
               <tr>
@@ -135,17 +321,15 @@
               </tr>
             </thead>
             <tbody id="transactions-table-body">
-              <tr>
-                <td colspan="4" class="text-center text-muted">No sales transactions.</td>
-              </tr>
+              <tr><td colspan="4" class="text-center text-muted">No transactions.</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      <div class="panel-section glass" style="margin-bottom: 20px;">
-        <h3>Ledger Sheet</h3>
-        <div class="ledger-journal-wrapper" style="max-height: 400px;">
+      <div class="panel-section">
+        <h3>Ledger Sheet (Double-Entry Logs)</h3>
+        <div class="table-wrapper" style="max-height: 500px;">
           <table class="data-table font-mono-table">
             <thead>
               <tr>
@@ -153,18 +337,15 @@
                 <th>Account</th>
                 <th>Type</th>
                 <th>Amount</th>
-                <th>Description</th>
               </tr>
             </thead>
             <tbody id="ledger-table-body">
-              <tr>
-                <td colspan="5" class="text-center text-muted">No ledger entries.</td>
-              </tr>
+              <tr><td colspan="4" class="text-center text-muted">No ledger entries.</td></tr>
             </tbody>
           </table>
         </div>
       </div>
-    </section>
+    </div>
   </main>
 
   <script src="app.js"></script>
