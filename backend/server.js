@@ -364,34 +364,54 @@ app.post(['/api/basqet/pay-initiate', '/api-v1/basqet/pay-initiate'], paymentLim
 
     // If real Basqet keys are configured, call real API — otherwise simulate
     if (process.env.BASQET_PRIVATE_KEY && process.env.BASQET_API_URL) {
-      // Real Basqet API call
-      const basqetResp = await fetch(`${process.env.BASQET_API_URL}/v1/transactions`, {
+      // Step 1: Initialize Transaction
+      const initResp = await fetch(`${process.env.BASQET_API_URL}/v1/transaction`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.BASQET_PRIVATE_KEY}`
         },
         body: JSON.stringify({
-          reference: tx.reference,
-          amount: tx.gross_amount,
+          customer: {
+            name: tx.customer_name,
+            email: tx.customer_email
+          },
           currency: 'NGN',
-          currency_id: currencyId,
-          customer_email: tx.customer_email,
-          customer_name: tx.customer_name
+          amount: tx.gross_amount.toString(),
+          description: `Ticket Purchase for ${tx.customer_name}`
         })
       });
 
-      const basqetData = await basqetResp.json();
-      if (!basqetResp.ok) {
-        return res.status(basqetResp.status).json({ error: basqetData.message || 'Basqet API error' });
+      const initData = await initResp.json();
+      if (!initResp.ok) {
+        return res.status(initResp.status).json({ error: initData.message || 'Basqet initialization failed' });
+      }
+
+      const basqetTxId = initData.data.id;
+
+      // Step 2: Initiate Transaction (Pay)
+      const payResp = await fetch(`${process.env.BASQET_API_URL}/v1/transaction/${basqetTxId}/pay`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.BASQET_PRIVATE_KEY}`
+        },
+        body: JSON.stringify({
+          currency_id: parseInt(currencyId, 10)
+        })
+      });
+
+      const payData = await payResp.json();
+      if (!payResp.ok) {
+        return res.status(payResp.status).json({ error: payData.message || 'Basqet payment initiation failed' });
       }
 
       await db.run(
         'UPDATE transactions SET status = ?, crypto_currency_id = ?, crypto_amount = ?, payment_address = ? WHERE reference = ?',
-        ['PAYMENT_PENDING', currencyId, basqetData.data?.payment_amount, basqetData.data?.payment_address, transactionId]
+        ['PAYMENT_PENDING', currencyId, payData.data?.payment_amount, payData.data?.payment_address, transactionId]
       );
 
-      return res.json({ status: 'success', data: basqetData.data });
+      return res.json({ status: 'success', data: payData.data });
     }
 
     // Simulation fallback
