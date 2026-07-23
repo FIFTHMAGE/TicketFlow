@@ -279,7 +279,10 @@ async function initiatePayment(currencyId) {
       const amtNum = typeof rawAmt === 'string' ? parseFloat(rawAmt) : rawAmt;
       const amtFormatted = amtNum ? amtNum.toFixed(6) : '0.000000';
 
-      document.getElementById('checkout-price-fiat').innerText = `₦${transaction.amount.toLocaleString()}`;
+      const amt = parseFloat(transaction.amount);
+      const fiatFormatted = isNaN(amt) ? transaction.amount : amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      document.getElementById('checkout-price-fiat').innerText = `₦${fiatFormatted}`;
       document.getElementById('checkout-price-crypto').innerText = `${amtFormatted} ${ticker}`;
       document.getElementById('deposit-address').value = details.payment_address;
       
@@ -353,7 +356,10 @@ async function initiateNombaPayment() {
     if (payData.status === 'success') {
       const details = payData.data;
       
-      document.getElementById('checkout-price-fiat').innerText = `₦${transaction.amount.toLocaleString()}`;
+      const amt = parseFloat(transaction.amount);
+      const fiatFormatted = isNaN(amt) ? transaction.amount : amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      document.getElementById('checkout-price-fiat').innerText = `₦${fiatFormatted}`;
       document.getElementById('checkout-price-crypto').innerText = `Nomba Card / Transfer`;
       document.getElementById('deposit-address').value = details.bank_account;
       
