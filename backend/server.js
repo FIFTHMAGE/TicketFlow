@@ -104,14 +104,6 @@ const webhookLimiter = rateLimit({
 app.use('/admin', requireAdmin, express.static(path.join(__dirname, '../frontend/admin')));
 app.use(express.static(path.join(__dirname, '../frontend/public')));
 
-// URL translation middleware: map /api-v1/* internally to /api/*
-app.use((req, res, next) => {
-  if (req.url.startsWith('/api-v1/')) {
-    req.url = req.url.replace('/api-v1/', '/api/');
-  }
-  next();
-});
-
 // ── Auth ─────────────────────────────────────────────────────────────────────
 app.post('/api/auth/login', authLimiter, async (req, res) => {
   const { username, password } = req.body;
@@ -206,7 +198,7 @@ app.post('/api/vendor/resend-verification', authLimiter, async (req, res) => {
 
 
 // ── Public storefront APIs ────────────────────────────────────────────────
-app.get('/api/events', async (req, res) => {
+app.get(['/api/events', '/api-v1/events'], async (req, res) => {
   try {
     await reservations.expireStale(); // flush expired holds before returning counts
     const items = await db.all(`
@@ -223,7 +215,7 @@ app.get('/api/events', async (req, res) => {
 });
 
 // ── Ticket Reservation ────────────────────────────────────────────────────
-app.post('/api/reserve', paymentLimiter, async (req, res) => {
+app.post(['/api/reserve', '/api-v1/reserve'], paymentLimiter, async (req, res) => {
   const { eventId, customerName, customerEmail } = req.body;
 
   if (!eventId) return res.status(400).json({ error: 'eventId is required' });
@@ -260,7 +252,7 @@ app.delete('/api/reserve/:id', async (req, res) => {
 });
 
 
-app.get('/api/public-stats', async (req, res) => {
+app.get(['/api/public-stats', '/api-v1/public-stats'], async (req, res) => {
   try {
     const pool = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'SETTLEMENT_POOL'");
     const revenue = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'PLATFORM_REVENUE'");
