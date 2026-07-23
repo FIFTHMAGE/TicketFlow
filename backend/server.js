@@ -472,8 +472,8 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
         console.log('[NOMBA INIT] Access Token status:', token ? 'ACQUIRED' : 'FAILED', tokenData);
 
         if (token) {
-          console.log('[NOMBA INIT] Calling checkout/initialize...');
-          const checkoutResp = await fetch(`${process.env.NODE_ENV === 'production' ? 'https://api.nomba.com/v1' : 'https://api.nomba.com/c/v1'}/checkout/initialize`, {
+          console.log('[NOMBA INIT] Calling checkout/order...');
+          const checkoutResp = await fetch(`${process.env.NODE_ENV === 'production' ? 'https://api.nomba.com/v1' : 'https://api.nomba.com/c/v1'}/checkout/order`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -481,25 +481,25 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
               'accountId': process.env.NOMBA_ACCOUNT_ID
             },
             body: JSON.stringify({
-              amount: tx.gross_amount,
-              orderReference: tx.reference,
-              customerId: tx.customer_email,
-              callbackUrl: `https://${req.headers.host || 'ticket-flow-drab.vercel.app'}/api-v1/nomba/callback`,
-              customerEmail: tx.customer_email,
-              customerName: tx.customer_name,
-              description: `Ticket Purchase for ${tx.customer_name}`,
-              currency: 'NGN',
-              paymentChannels: ['CARD', 'BANK_TRANSFER']
+              order: {
+                amount: tx.gross_amount.toString(),
+                currency: 'NGN',
+                orderReference: tx.reference,
+                callbackUrl: `https://${req.headers.host || 'ticket-flow-drab.vercel.app'}/api-v1/nomba/callback`,
+                customerEmail: tx.customer_email,
+                customerId: tx.customer_email,
+                allowedPaymentMethods: ['Card', 'Transfer']
+              }
             })
           });
 
           const checkoutData = await checkoutResp.json();
-          console.log('[NOMBA INIT] checkout/initialize response status:', checkoutResp.status, checkoutData);
+          console.log('[NOMBA INIT] checkout/order response status:', checkoutResp.status, checkoutData);
           if (checkoutResp.ok && checkoutData.code === '00') {
             const details = checkoutData.data;
             await db.run(
               "UPDATE transactions SET status = ?, payment_address = ? WHERE reference = ?",
-              ['PAYMENT_PENDING', details.checkoutUrl, transactionId]
+              ['PAYMENT_PENDING', details.checkoutLink, transactionId]
             );
 
             return res.json({
@@ -508,7 +508,7 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
                 id: transactionId,
                 reference: transactionId,
                 status: 'PAYMENT_PENDING',
-                checkoutUrl: details.checkoutUrl,
+                checkoutUrl: details.checkoutLink,
                 amount: tx.gross_amount
               }
             });
