@@ -43,7 +43,7 @@ async function loadEvents() {
           </div>
         </div>
         <div class="event-price-row">
-          <div class="event-price">₦${event.price.toLocaleString()}</div>
+          <div class="event-price">₦${isNaN(parseFloat(event.price)) ? event.price : parseFloat(event.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           ${buttonHtml}
         </div>
       `;
