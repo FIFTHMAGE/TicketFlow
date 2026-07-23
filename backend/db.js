@@ -4,19 +4,28 @@ const bcrypt = require('bcryptjs');
 
 const transactionStorage = new AsyncLocalStorage();
 
-if (!process.env.DATABASE_URL) {
-  console.error('[DB] FATAL: DATABASE_URL environment variable must be set to connect to Supabase.');
+let pool = null;
+
+if (process.env.DATABASE_URL) {
+  console.log('[DB] Connecting to Supabase via DATABASE_URL...');
+  pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+} else if (process.env.DB_HOST) {
+  console.log('[DB] Connecting to Supabase via individual parameters...');
+  pool = new pg.Pool({
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT || '5432', 10),
+    database: process.env.DB_NAME || 'postgres',
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD,
+    ssl: { rejectUnauthorized: false }
+  });
+} else {
+  console.error('[DB] FATAL: Either DATABASE_URL or DB_HOST must be set.');
   process.exit(1);
 }
-
-console.log('[DB] Connecting to Supabase/PostgreSQL...');
-
-const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false // Required for Supabase serverless connections
-  }
-});
 
 // Get the current execution client (transaction client or global pool)
 const getExecutor = () => {
@@ -75,8 +84,6 @@ const runTransaction = async (actions) => {
 };
 
 const initDb = async () => {
-  // Database tables are pre-provisioned via the Supabase schema script directly.
-  // We perform a basic connectivity check on boot here instead.
   try {
     const res = await pool.query('SELECT NOW()');
     console.log('[DB] Connection check successful. Database time:', res.rows[0].now);
