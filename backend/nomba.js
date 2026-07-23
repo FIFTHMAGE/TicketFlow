@@ -3,7 +3,13 @@
  * Docs: https://developer.nomba.com/docs/products/transfers/transfer-to-banks
  */
 
-const NOMBA_API_URL = process.env.NOMBA_API_URL || 'https://api.nomba.com';
+// Dynamically toggle endpoints based on Environment
+// Production: https://api.nomba.com/v1
+// Sandbox/Dev: https://api.nomba.com/c/v1
+const NOMBA_BASE = process.env.NODE_ENV === 'production' 
+  ? 'https://api.nomba.com/v1' 
+  : 'https://api.nomba.com/c/v1';
+
 const NOMBA_CLIENT_ID = process.env.NOMBA_CLIENT_ID;
 const NOMBA_CLIENT_SECRET = process.env.NOMBA_CLIENT_SECRET;
 const NOMBA_ACCOUNT_ID = process.env.NOMBA_ACCOUNT_ID;
@@ -25,7 +31,7 @@ async function getNombaToken() {
     throw new Error('NOMBA_CLIENT_ID and NOMBA_CLIENT_SECRET must be set');
   }
 
-  const resp = await fetch(`${NOMBA_API_URL}/v1/auth/token/issue`, {
+  const resp = await fetch(`${NOMBA_BASE}/auth/token/issue`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -81,7 +87,7 @@ async function callNombaTransferAPI(payload, idempotencyKey) {
       currency: 'NGN'
     };
 
-    const resp = await fetch(`${NOMBA_API_URL}/v1/transfers/bank`, {
+    const resp = await fetch(`${NOMBA_BASE}/transfers/bank`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
