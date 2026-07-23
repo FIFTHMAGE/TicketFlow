@@ -1,25 +1,17 @@
 {
   "version": 2,
-  "cleanUrls": false,
-  "trailingSlash": false,
-  "builds": [
+  "rewrites": [
     {
-      "src": "backend/server.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/admin/(.*)",
-      "dest": "backend/server.js"
+      "source": "/api/(.*)",
+      "destination": "/backend/server.js"
     },
     {
-      "src": "/api/(.*)",
-      "dest": "backend/server.js"
+      "source": "/admin/(.*)",
+      "destination": "/backend/server.js"
     },
     {
-      "src": "/(.*)",
-      "dest": "backend/server.js"
+      "source": "/((?!api|admin).*)" ,
+      "destination": "/backend/server.js"
     }
   ]
 }
