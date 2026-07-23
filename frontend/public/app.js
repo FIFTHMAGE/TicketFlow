@@ -368,17 +368,20 @@ async function initiateNombaPayment() {
       const fiatFormatted = isNaN(amt) ? transaction.amount : amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
       document.getElementById('checkout-price-fiat').innerText = `₦${fiatFormatted}`;
-      document.getElementById('checkout-price-crypto').innerText = `Nomba Card / Transfer`;
-      document.getElementById('deposit-address').value = details.bank_account;
+      document.getElementById('checkout-price-crypto').innerText = `Nomba Card / Bank Transfer`;
+      document.getElementById('deposit-address').value = details.checkoutUrl;
       
       const qrBox = document.getElementById('qr-code-box');
       qrBox.innerHTML = `
-        <div style="font-size: 13px; text-align: center; color: #fff; padding: 20px; font-family: monospace;">
-          <strong>Nomba Checkout</strong><br/><br/>
-          Bank: Nomba Bank<br/>
-          Account: ${details.bank_account}
+        <div style="font-size: 13px; text-align: center; color: #fff; padding: 20px;">
+          <strong>Nomba Payment Session Initialized</strong><br/><br/>
+          Click the button below to pay securely with your Card or Bank Transfer.<br/><br/>
+          <a href="${details.checkoutUrl}" target="_blank" class="btn-primary" style="display: inline-block; padding: 10px 20px; text-decoration: none; border-radius: 6px;">Open Nomba Gateway</a>
         </div>
       `;
+
+      // Auto-open Nomba hosted checkout window
+      window.open(details.checkoutUrl, '_blank');
 
       document.getElementById('checkout-title').innerText = 'Complete Payment';
       document.getElementById('checkout-step-init').classList.add('hidden');

@@ -462,8 +462,7 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
         const tokenData = await tokenResp.json();
         const token = tokenData.data?.access_token || tokenData.access_token;
 
-        if (token) {
-          const accountResp = await fetch(`${process.env.NODE_ENV === 'production' ? 'https://api.nomba.com/v1' : 'https://api.nomba.com/c/v1'}/virtual-accounts`, {
+          const checkoutResp = await fetch(`${process.env.NODE_ENV === 'production' ? 'https://api.nomba.com/v1' : 'https://api.nomba.com/c/v1'}/checkout/initialize`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -471,20 +470,23 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
               'accountId': process.env.NOMBA_ACCOUNT_ID
             },
             body: JSON.stringify({
-              accountType: 'TEMPORARY',
               amount: tx.gross_amount,
+              orderReference: tx.reference,
+              customerId: tx.customer_email,
+              callbackUrl: `https://${req.headers.host || 'ticket-flow-drab.vercel.app'}/api-v1/nomba/callback`,
               customerEmail: tx.customer_email,
               customerName: tx.customer_name,
-              merchantTxRef: tx.reference
+              description: `Ticket Purchase for ${tx.customer_name}`,
+              currency: 'NGN'
             })
           });
 
-          const accountData = await accountResp.json();
-          if (accountResp.ok && accountData.code === '00') {
-            const details = accountData.data;
+          const checkoutData = await checkoutResp.json();
+          if (checkoutResp.ok && checkoutData.code === '00') {
+            const details = checkoutData.data;
             await db.run(
               "UPDATE transactions SET status = ?, payment_address = ? WHERE reference = ?",
-              ['PAYMENT_PENDING', details.accountNumber, transactionId]
+              ['PAYMENT_PENDING', details.checkoutUrl, transactionId]
             );
 
             return res.json({
@@ -493,8 +495,7 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
                 id: transactionId,
                 reference: transactionId,
                 status: 'PAYMENT_PENDING',
-                bank_name: details.bankName || 'Nomba Microfinance Bank',
-                bank_account: details.accountNumber,
+                checkoutUrl: details.checkoutUrl,
                 amount: tx.gross_amount
               }
             });
