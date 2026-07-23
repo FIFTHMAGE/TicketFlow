@@ -448,8 +448,16 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
     if (tx.status !== 'INITIATED') return res.status(409).json({ error: 'Transaction already in progress' });
 
     // Real Nomba API integration
+    console.log('[NOMBA INIT] Checking env keys:', {
+      NOMBA_CLIENT_ID: process.env.NOMBA_CLIENT_ID ? 'SET' : 'MISSING',
+      NOMBA_CLIENT_SECRET: process.env.NOMBA_CLIENT_SECRET ? 'SET' : 'MISSING',
+      NOMBA_ACCOUNT_ID: process.env.NOMBA_ACCOUNT_ID ? 'SET' : 'MISSING',
+      NODE_ENV: process.env.NODE_ENV
+    });
+
     if (process.env.NOMBA_CLIENT_ID && process.env.NOMBA_CLIENT_SECRET && process.env.NOMBA_ACCOUNT_ID) {
       try {
+        console.log('[NOMBA INIT] Attempting authentication...');
         const tokenResp = await fetch(`${process.env.NODE_ENV === 'production' ? 'https://api.nomba.com/v1' : 'https://api.nomba.com/c/v1'}/auth/token/issue`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -461,7 +469,10 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
         });
         const tokenData = await tokenResp.json();
         const token = tokenData.data?.access_token || tokenData.access_token;
+        console.log('[NOMBA INIT] Access Token status:', token ? 'ACQUIRED' : 'FAILED', tokenData);
+
         if (token) {
+          console.log('[NOMBA INIT] Calling checkout/initialize...');
           const checkoutResp = await fetch(`${process.env.NODE_ENV === 'production' ? 'https://api.nomba.com/v1' : 'https://api.nomba.com/c/v1'}/checkout/initialize`, {
             method: 'POST',
             headers: {
@@ -483,6 +494,7 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
           });
 
           const checkoutData = await checkoutResp.json();
+          console.log('[NOMBA INIT] checkout/initialize response status:', checkoutResp.status, checkoutData);
           if (checkoutResp.ok && checkoutData.code === '00') {
             const details = checkoutData.data;
             await db.run(
