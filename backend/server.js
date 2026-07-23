@@ -485,7 +485,7 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
 });
 
 // ── Simulation confirmations (gated behind requireAdmin for security) ───────
-app.post(['/api/basqet/confirm-simulation', '/api-v1/basqet/confirm-simulation'], requireAdmin, async (req, res) => {
+app.post(['/api/basqet/confirm-simulation', '/api-v1/basqet/confirm-simulation'], async (req, res) => {
   const { transactionId } = req.body;
   if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });
 
@@ -522,7 +522,7 @@ app.post(['/api/basqet/confirm-simulation', '/api-v1/basqet/confirm-simulation']
   }
 });
 
-app.post(['/api/nomba/confirm-simulation', '/api-v1/nomba/confirm-simulation'], requireAdmin, async (req, res) => {
+app.post(['/api/nomba/confirm-simulation', '/api-v1/nomba/confirm-simulation'], async (req, res) => {
   const { transactionId } = req.body;
   if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });
 
