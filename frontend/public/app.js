@@ -180,6 +180,7 @@ function openCheckout(eventId, price) {
   document.getElementById('checkout-step-init').classList.remove('hidden');
   document.getElementById('checkout-step-pay').classList.add('hidden');
   document.getElementById('proceed-button-container').classList.add('hidden');
+  document.getElementById('checkout-status-msg').classList.add('hidden');
 
   // Clear all button selections
   document.querySelectorAll('.crypto-btn').forEach(btn => {
@@ -195,6 +196,7 @@ function openCheckout(eventId, price) {
 
 async function closeCheckout() {
   document.getElementById('checkout-modal').classList.remove('active');
+  document.getElementById('checkout-status-msg').classList.add('hidden');
   if (countdownInterval) clearInterval(countdownInterval);
 
   // If a reservation was created but not paid/converted, release it immediately on cancel
@@ -374,8 +376,32 @@ async function initiateNombaPayment() {
   }
 }
 
+function showCheckoutStatus(msg, type = 'pending') {
+  const container = document.getElementById('checkout-status-msg');
+  container.innerText = msg;
+  container.classList.remove('hidden');
+
+  if (type === 'success') {
+    container.style.backgroundColor = 'rgba(146, 203, 60, 0.08)';
+    container.style.borderColor = 'var(--green)';
+    container.style.color = '#92cb3c';
+  } else if (type === 'error') {
+    container.style.backgroundColor = 'rgba(235, 87, 87, 0.08)';
+    container.style.borderColor = '#eb5757';
+    container.style.color = '#eb5757';
+  } else {
+    // pending
+    container.style.backgroundColor = 'rgba(242, 201, 76, 0.08)';
+    container.style.borderColor = '#f2c94c';
+    container.style.color = '#f2c94c';
+  }
+}
+
 async function checkPaymentStatus() {
   if (!activeTransactionId) return;
+
+  // Clear previous message
+  document.getElementById('checkout-status-msg').classList.add('hidden');
 
   try {
     const url = activePaymentGateway === 'nomba' 
@@ -390,17 +416,19 @@ async function checkPaymentStatus() {
     const data = await res.json();
     
     if (data.status === 'success') {
-      alert(`Payment Confirmed! Ledger updated successfully.`);
-      activeReservationId = null; // cleared since it's converted
-      closeCheckout();
-      loadPublicStats(); // refresh visual dashboard instantly
+      showCheckoutStatus(`Payment Confirmed! Redirecting...`, 'success');
+      setTimeout(() => {
+        activeReservationId = null; // cleared since it's converted
+        closeCheckout();
+        loadPublicStats(); // refresh visual dashboard instantly
+      }, 2000);
     } else {
-      // Show pending check details returned by server
-      alert(data.message || 'Payment verification is pending. Please wait.');
+      // Show pending check details returned by server in custom message box
+      showCheckoutStatus(data.message || 'Payment verification is pending. Please wait.', 'pending');
     }
   } catch (err) {
     console.error('Error verifying payment:', err);
-    alert('Verification check failed. Please try again.');
+    showCheckoutStatus('Verification check failed. Please try again.', 'error');
   }
 }
 
