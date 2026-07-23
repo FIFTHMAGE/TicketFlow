@@ -340,6 +340,37 @@ app.post(['/api/purchase', '/api-v1/purchase'], paymentLimiter, async (req, res)
   }
 });
 
+// ── Basqet: fetch supported currencies (proxied + cached) ─────────────────
+let basqetCurrencyCache = { data: null, fetchedAt: 0 };
+app.get(['/api/basqet/currencies', '/api-v1/basqet/currencies'], async (req, res) => {
+  const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+  if (basqetCurrencyCache.data && (Date.now() - basqetCurrencyCache.fetchedAt < CACHE_TTL)) {
+    return res.json({ currencies: basqetCurrencyCache.data });
+  }
+  try {
+    const r = await fetch('https://api.basqet.com/v1/currency', {
+      headers: {
+        'Authorization': `Bearer ${process.env.BASQET_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const data = await r.json();
+    const currencies = data.data || data.currencies || data || [];
+    basqetCurrencyCache = { data: Array.isArray(currencies) ? currencies : [], fetchedAt: Date.now() };
+    return res.json({ currencies: basqetCurrencyCache.data });
+  } catch (err) {
+    console.error('[BASQET CURRENCIES ERROR]', err);
+    // Return known fallback list so UI is never empty
+    return res.json({ currencies: [
+      { id: 3, name: 'Tether', slug: 'USDT', type: 'CRYPTO' },
+      { id: 4, name: 'Bitcoin', slug: 'BTC', type: 'CRYPTO' },
+      { id: 5, name: 'Quidax Token', slug: 'QDX', type: 'CRYPTO' },
+      { id: 6, name: 'Ethereum', slug: 'ETH', type: 'CRYPTO' },
+      { id: 7, name: 'Litecoin', slug: 'LTC', type: 'CRYPTO' },
+    ]});
+  }
+});
+
 // ── Basqet: initiate crypto payment ──────────────────────────────────────
 app.post(['/api/basqet/pay-initiate', '/api-v1/basqet/pay-initiate'], paymentLimiter, async (req, res) => {
   const { transactionId, currencyId } = req.body;

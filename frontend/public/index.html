@@ -1084,19 +1084,11 @@
           </button>
           
           <div style="text-align: center; margin: 5px 0; color: var(--sand); font-size: 11px;">— OR PAY WITH CRYPTO —</div>
- 
-          <button class="crypto-btn" data-pay-method="basqet" data-currency="3" onclick="selectPaymentOption(this, 'basqet', 3)">
-            <span style="font-size: 20px; margin-right: 5px;">🟢</span>
-            <span>USDT (Tether) via Basqet</span>
-          </button>
-          <button class="crypto-btn" data-pay-method="basqet" data-currency="4" onclick="selectPaymentOption(this, 'basqet', 4)">
-            <span style="font-size: 20px; margin-right: 5px;">🪙</span>
-            <span>BTC (Bitcoin) via Basqet</span>
-          </button>
-          <button class="crypto-btn" data-pay-method="basqet" data-currency="6" onclick="selectPaymentOption(this, 'basqet', 6)">
-            <span style="font-size: 20px; margin-right: 5px;">🔷</span>
-            <span>ETH (Ethereum) via Basqet</span>
-          </button>
+
+          <!-- Dynamically populated from Basqet /v1/currency API -->
+          <div id="basqet-currency-options" style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="text-align: center; color: var(--sand); font-size: 0.8rem; padding: 8px;">Loading crypto options...</div>
+          </div>
         </div>
 
         <!-- Proceed Action Button -->

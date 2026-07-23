@@ -7,12 +7,64 @@ const API_BASE = '/api-v1';
 window.addEventListener('DOMContentLoaded', () => {
   loadEvents();
   loadPublicStats();
+  loadBasqetCurrencies();
   
   // Periodically refresh public stats mockup panel (every 3 seconds)
   setInterval(() => {
     loadPublicStats();
   }, 3000);
 });
+
+async function loadBasqetCurrencies() {
+  const container = document.getElementById('basqet-currency-options');
+  if (!container) return;
+
+  // Emoji map keyed by slug/ticker
+  const emojiMap = {
+    USDT: '🟢', BTC: '🪙', ETH: '🔷', LTC: '🔵',
+    QDX: '🟡', BNB: '🟠', SOL: '🟣', USDC: '🔵',
+    XRP: '🔹', DOGE: '🐶', MATIC: '🔮', TRX: '♦️'
+  };
+
+  try {
+    const res = await fetch(`${API_BASE}/basqet/currencies`);
+    const data = await res.json();
+    const currencies = data.currencies || [];
+
+    if (!currencies.length) {
+      container.innerHTML = `<div style="color: var(--sand); font-size: 0.8rem; text-align: center;">No crypto options available.</div>`;
+      return;
+    }
+
+    container.innerHTML = currencies
+      .filter(c => c.type === 'CRYPTO')
+      .map(c => {
+        const emoji = emojiMap[c.slug?.toUpperCase()] || '💠';
+        return `
+          <button class="crypto-btn" data-pay-method="basqet" data-currency="${c.id}"
+            onclick="selectPaymentOption(this, 'basqet', ${c.id})">
+            <span style="font-size: 20px; margin-right: 5px;">${emoji}</span>
+            <span>${c.slug} (${c.name}) via Basqet</span>
+          </button>`;
+      }).join('');
+
+  } catch (err) {
+    console.error('Failed to load Basqet currencies:', err);
+    // Fallback to known tokens
+    container.innerHTML = [
+      { id: 3, slug: 'USDT', name: 'Tether', emoji: '🟢' },
+      { id: 4, slug: 'BTC',  name: 'Bitcoin', emoji: '🪙' },
+      { id: 5, slug: 'QDX',  name: 'Quidax Token', emoji: '🟡' },
+      { id: 6, slug: 'ETH',  name: 'Ethereum', emoji: '🔷' },
+      { id: 7, slug: 'LTC',  name: 'Litecoin', emoji: '🔵' },
+    ].map(c => `
+      <button class="crypto-btn" data-pay-method="basqet" data-currency="${c.id}"
+        onclick="selectPaymentOption(this, 'basqet', ${c.id})">
+        <span style="font-size: 20px; margin-right: 5px;">${c.emoji}</span>
+        <span>${c.slug} (${c.name}) via Basqet</span>
+      </button>`).join('');
+  }
+}
 
 async function loadEvents() {
   const container = document.getElementById('events-grid');
