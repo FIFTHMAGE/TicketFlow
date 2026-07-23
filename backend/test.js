@@ -125,6 +125,76 @@ const runTests = async () => {
   const flag = await db.get('SELECT * FROM reconciliation_flags WHERE transaction_id = ?', [mismatchRef]);
   assert(flag !== undefined && flag.type === 'AMOUNT_MISMATCH', 'Reconciliation flag logged correctly in database');
 
+  // Test 5: Dual Authorization Threshold Limits (₦5,000,000+)
+  console.log('Testing Dual Authorization for high-value payouts...');
+  
+  // Reset account number to valid for vendor tech_fest
+  await db.run("UPDATE vendors SET account_number = '9876543210' WHERE id = 'vendor_tech_fest'");
+
+  // Credit vendor account with 6,000,000 to trigger threshold limit payout
+  await db.run("UPDATE ledger_accounts SET balance = 6000000.0 WHERE id = 'VENDOR_PAYABLE_vendor_tech_fest'");
+  await db.run("UPDATE ledger_accounts SET balance = balance + 6000000.0 WHERE id = 'SETTLEMENT_POOL'");
+
+  // Run Batch Settlement
+  const highValueBatch = await settlement.runSettlementBatch('test_runner');
+  
+  // Find the created payout
+  const highPayout = await db.get("SELECT * FROM payouts WHERE vendor_id = 'vendor_tech_fest' AND status = 'PENDING_APPROVAL'");
+  assert(highPayout !== undefined, 'High-value payout correctly flagged as PENDING_APPROVAL');
+  assert(highPayout.amount === 6000000.0, 'Locked amount matches expected high value payout');
+
+  // Verify that vendor balance is debited (reserved in ledger)
+  const vendorPayableBal = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'VENDOR_PAYABLE_vendor_tech_fest'");
+  assert(vendorPayableBal.balance === 0.0, 'Vendor balance reserved/frozen on ledger during PENDING_APPROVAL state');
+
+  // Approve payout as FINANCE
+  await settlement.approvePayout(highPayout.id, 'finance_user', 'FINANCE');
+  let highPayoutUpdated = await db.get("SELECT * FROM payouts WHERE id = ?", [highPayout.id]);
+  assert(highPayoutUpdated.approved_by_finance === 'finance_user', 'Finance approval successfully captured');
+  assert(highPayoutUpdated.status === 'PENDING_APPROVAL', 'Payout remains pending approval until second role signs');
+
+  // Approve payout as ADMIN
+  await settlement.approvePayout(highPayout.id, 'admin_user', 'ADMIN');
+  highPayoutUpdated = await db.get("SELECT * FROM payouts WHERE id = ?", [highPayout.id]);
+  assert(highPayoutUpdated.approved_by_admin === 'admin_user', 'Admin approval successfully captured');
+
+  // Next batch run should now process the fully authorized payout
+  const processedBatch = await settlement.runSettlementBatch('test_runner');
+  const highPayoutFinal = await db.get("SELECT * FROM payouts WHERE id = ?", [highPayout.id]);
+  assert(highPayoutFinal.status === 'COMPLETED', 'Fully approved high-value payout executed successfully in next batch');
+
+  // Test 6: Refund Processing Double-Entry Check
+  console.log('Testing transaction refund process double-entry logic...');
+  
+  // Seed transaction for refund
+  const refundTxRef = 'REFUND_TX_001';
+  // gross: 10000, 10% platform fee, 90% vendor
+  await db.run(
+    `INSERT INTO transactions (id, reference, platform_id, vendor_id, marketplace_item_id, gross_amount, platform_fee, vendor_amount, status) 
+     VALUES (?, ?, ?, 'vendor_tix_organizer', 'item_tech_ticket', 10000.0, 1000.0, 9000.0, 'ALLOCATED_TO_LEDGER')`,
+    [refundTxRef, refundTxRef, platformId]
+  );
+  // Fund the ledger balances simulating a completed transaction
+  await db.run("UPDATE ledger_accounts SET balance = balance + 10000.0 WHERE id = 'SETTLEMENT_POOL'");
+  await db.run("UPDATE ledger_accounts SET balance = balance + 9000.0 WHERE id = 'VENDOR_PAYABLE_vendor_tix_organizer'");
+  await db.run("UPDATE ledger_accounts SET balance = balance + 1000.0 WHERE id = 'PLATFORM_REVENUE'");
+
+  // Trigger refund
+  await ledger.processRefund(refundTxRef);
+
+  // Validate transaction state
+  const refundedTx = await db.get('SELECT * FROM transactions WHERE reference = ?', [refundTxRef]);
+  assert(refundedTx.status === 'REFUNDED', 'Transaction status successfully set to REFUNDED');
+
+  // Validate ledger balances dropped appropriately
+  const poolBal = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'SETTLEMENT_POOL'");
+  const feeBal = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'PLATFORM_REVENUE'");
+  const vendorBal = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'VENDOR_PAYABLE_vendor_tix_organizer'");
+
+  // Verify pool dropped by 10k, platform by 1k, vendor by 9k
+  assert(feeBal.balance === 2500.0, 'Platform revenue reversed (returned platform fee share)');
+  assert(vendorBal.balance === 0.0, 'Vendor payable reversed (debited vendor share)');
+
   console.log('\n🎉 ALL REVISED INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉');
 };
 

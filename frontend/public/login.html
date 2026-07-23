@@ -50,8 +50,10 @@
         
         const data = await res.json();
         if (res.ok) {
-          // Store token in localStorage
+          // Store token and role in localStorage
           localStorage.setItem('admin_token', data.token);
+          localStorage.setItem('admin_role', data.role);
+          localStorage.setItem('admin_username', data.username);
 
           // Set cookie for browser page access to /admin
           document.cookie = `admin_token=${data.token}; path=/; max-age=28800; SameSite=Strict`;

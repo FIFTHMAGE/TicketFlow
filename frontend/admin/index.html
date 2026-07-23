@@ -87,18 +87,65 @@
           </table>
         </div>
       </div>
+
+      <!-- Pending High-Value Approvals -->
+      <div class="panel-section glass">
+        <h3 style="color: #fbbf24; display: flex; align-items: center; gap: 8px;">
+          🔑 Payout Approvals Required (₦5,000,000+)
+        </h3>
+        <div class="batches-list-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Payout ID</th>
+                <th>Amount</th>
+                <th>Finance Sign</th>
+                <th>Admin Sign</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="approvals-table-body">
+              <tr>
+                <td colspan="5" class="text-center text-muted">No payouts pending authorization.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <!-- Right Column: Ledger Journal entries and transactions -->
     <section class="column-ledger">
       <div class="section-title-wrapper">
-        <h2 class="section-heading">Ledger Entries (Journal Logs)</h2>
-        <p class="section-subheading">Double-entry audit logs</p>
+        <h2 class="section-heading">Ledger Entries & Transactions</h2>
+        <p class="section-subheading">Double-entry audit logs and sales items</p>
+      </div>
+
+      <!-- Transactions List -->
+      <div class="panel-section glass" style="margin-bottom: 20px;">
+        <h3>Sales Transactions</h3>
+        <div class="ledger-journal-wrapper" style="max-height: 250px;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Ref</th>
+                <th>Gross</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="transactions-table-body">
+              <tr>
+                <td colspan="4" class="text-center text-muted">No sales transactions.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div class="panel-section glass" style="margin-bottom: 20px;">
         <h3>Ledger Sheet</h3>
-        <div class="ledger-journal-wrapper" style="max-height: 500px;">
+        <div class="ledger-journal-wrapper" style="max-height: 400px;">
           <table class="data-table font-mono-table">
             <thead>
               <tr>

@@ -27,7 +27,6 @@ function requireAdmin(req, res, next) {
   }
   
   if (!token) {
-    // If it's a browser page load, redirect to login page or return 401
     if (req.accepts('html')) {
       return res.redirect('/login.html');
     }
@@ -36,7 +35,7 @@ function requireAdmin(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.admin = decoded;
+    req.admin = decoded; // { username, role }
     next();
   } catch (err) {
     if (req.accepts('html')) {
@@ -46,7 +45,21 @@ function requireAdmin(req, res, next) {
   }
 }
 
+// Role Gating
+function requireRole(role) {
+  return (req, res, next) => {
+    requireAdmin(req, res, () => {
+      if (req.admin && req.admin.role === role) {
+        next();
+      } else {
+        res.status(403).json({ error: `Forbidden: Requires ${role} role` });
+      }
+    });
+  };
+}
+
 module.exports = {
   requireAdmin,
+  requireRole,
   JWT_SECRET
 };

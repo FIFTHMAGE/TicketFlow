@@ -41,10 +41,10 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate JWT token
-    const token = jwt.sign({ username: admin.username, role: 'admin' }, JWT_SECRET, { expiresIn: '8h' });
+    // Generate JWT token using real database role (ADMIN or FINANCE)
+    const token = jwt.sign({ username: admin.username, role: admin.role }, JWT_SECRET, { expiresIn: '8h' });
 
-    res.json({ token, username: admin.username });
+    res.json({ token, username: admin.username, role: admin.role });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -223,6 +223,38 @@ app.post('/api/admin/reconcile', requireAdmin, async (req, res) => {
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ADMIN API: Approve a pending high-value payout
+app.post('/api/admin/payouts/approve', requireAdmin, async (req, res) => {
+  const { payoutId } = req.body;
+  const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
+
+  try {
+    const result = await settlement.approvePayout(payoutId, req.admin.username, req.admin.role, ipAddress);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// ADMIN API: Execute a refund request
+app.post('/api/admin/refund', requireAdmin, async (req, res) => {
+  const { transactionId } = req.body;
+  const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
+
+  try {
+    // Log audit trail for refund initiation
+    await db.run(
+      'INSERT INTO audit_logs (username, action, details, ip_address) VALUES (?, ?, ?, ?)',
+      [req.admin.username, 'INITIATE_REFUND', `Refund requested for transaction ${transactionId}`, ipAddress]
+    );
+
+    const result = await ledger.processRefund(transactionId);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 

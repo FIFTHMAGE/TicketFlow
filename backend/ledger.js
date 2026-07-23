@@ -132,8 +132,56 @@ const reversePayout = async (payoutId, batchId, vendorId, amount, reason) => {
   });
 };
 
+const processRefund = async (txRef) => {
+  return db.runTransaction(async () => {
+    // 1. Fetch transaction
+    const tx = await db.get('SELECT * FROM transactions WHERE reference = ?', [txRef]);
+    if (!tx) throw new Error('Transaction not found');
+    if (tx.status !== 'ALLOCATED_TO_LEDGER') throw new Error('Transaction cannot be refunded in current state');
+
+    const { gross_amount, platform_fee, vendor_amount, vendor_id, platform_id } = tx;
+    const vendorAccount = `VENDOR_PAYABLE_${vendor_id}`;
+
+    // Verify vendor has sufficient balance
+    const vAcc = await db.get('SELECT * FROM ledger_accounts WHERE id = ?', [vendorAccount]);
+    if (!vAcc || vAcc.balance < vendor_amount) {
+      throw new Error(`Insufficient vendor balance to process refund. Required: ${vendor_amount}, Available: ${vAcc ? vAcc.balance : 0}`);
+    }
+
+    // 2. Insert ledger entries reversing the purchase
+    // CREDIT Settlement Pool (asset decreases)
+    await db.run(
+      'INSERT INTO ledger_entries (reference, account_id, type, amount, description) VALUES (?, ?, ?, ?, ?)',
+      [txRef, 'SETTLEMENT_POOL', 'CREDIT', gross_amount, `REFUND: Refunding ticket purchase - Reference: ${txRef}`]
+    );
+
+    // DEBIT Vendor Payable (liability decreases)
+    await db.run(
+      'INSERT INTO ledger_entries (reference, account_id, type, amount, description) VALUES (?, ?, ?, ?, ?)',
+      [txRef, vendorAccount, 'DEBIT', vendor_amount, `REFUND: Reversing vendor allocation - Reference: ${txRef}`]
+    );
+
+    // DEBIT Platform Revenue (revenue decreases)
+    await db.run(
+      'INSERT INTO ledger_entries (reference, account_id, type, amount, description) VALUES (?, ?, ?, ?, ?)',
+      [txRef, 'PLATFORM_REVENUE', 'DEBIT', platform_fee, `REFUND: Reversing platform commission fee - Reference: ${txRef}`]
+    );
+
+    // 3. Update account balances
+    await db.run('UPDATE ledger_accounts SET balance = balance - ? WHERE id = ?', [gross_amount, 'SETTLEMENT_POOL']);
+    await db.run('UPDATE ledger_accounts SET balance = balance - ? WHERE id = ?', [vendor_amount, vendorAccount]);
+    await db.run('UPDATE ledger_accounts SET balance = balance - ? WHERE id = ?', [platform_fee, 'PLATFORM_REVENUE']);
+
+    // 4. Update transaction status
+    await db.run('UPDATE transactions SET status = ? WHERE reference = ?', ['REFUNDED', txRef]);
+
+    return { status: 'success' };
+  });
+};
+
 module.exports = {
   recordPurchase,
   recordPayout,
-  reversePayout
+  reversePayout,
+  processRefund
 };

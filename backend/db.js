@@ -52,7 +52,7 @@ const initDb = async () => {
   // Enable foreign keys
   await run('PRAGMA foreign_keys = ON');
 
-  // Create platforms table with configurable split ratios
+  // Create platforms table
   await run(`
     CREATE TABLE IF NOT EXISTS platforms (
       id TEXT PRIMARY KEY,
@@ -107,7 +107,7 @@ const initDb = async () => {
       gross_amount REAL NOT NULL,
       platform_fee REAL NOT NULL,
       vendor_amount REAL NOT NULL,
-      confirmed_amount REAL, -- Amount returned from payment provider for verification
+      confirmed_amount REAL,
       status TEXT NOT NULL DEFAULT 'INITIATED',
       crypto_currency_id INTEGER,
       crypto_amount REAL,
@@ -122,9 +122,9 @@ const initDb = async () => {
   // Create ledger_accounts table
   await run(`
     CREATE TABLE IF NOT EXISTS ledger_accounts (
-      id TEXT PRIMARY KEY, -- e.g., 'SETTLEMENT_POOL', 'VENDOR_PAYABLE_vendorId', 'PLATFORM_REVENUE_platformId'
+      id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      type TEXT NOT NULL, -- 'ASSET', 'LIABILITY', 'REVENUE', 'EXPENSE'
+      type TEXT NOT NULL,
       balance REAL NOT NULL DEFAULT 0.0
     )
   `);
@@ -133,9 +133,9 @@ const initDb = async () => {
   await run(`
     CREATE TABLE IF NOT EXISTS ledger_entries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      reference TEXT NOT NULL, -- e.g. transaction_reference or batch_id
+      reference TEXT NOT NULL,
       account_id TEXT NOT NULL,
-      type TEXT NOT NULL, -- 'DEBIT' or 'CREDIT'
+      type TEXT NOT NULL,
       amount REAL NOT NULL,
       description TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -147,12 +147,12 @@ const initDb = async () => {
   await run(`
     CREATE TABLE IF NOT EXISTS settlement_batches (
       id TEXT PRIMARY KEY,
-      status TEXT NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'PROCESSING', 'PARTIAL_SUCCESS', 'COMPLETED', 'FAILED'
+      status TEXT NOT NULL DEFAULT 'PENDING',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // Create payouts table
+  // Create payouts table with approval tracking
   await run(`
     CREATE TABLE IF NOT EXISTS payouts (
       id TEXT PRIMARY KEY,
@@ -161,7 +161,9 @@ const initDb = async () => {
       amount REAL NOT NULL,
       idempotency_key TEXT UNIQUE NOT NULL,
       provider_reference TEXT,
-      status TEXT NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      approved_by_finance TEXT,
+      approved_by_admin TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (vendor_id) REFERENCES vendors(id),
       FOREIGN KEY (batch_id) REFERENCES settlement_batches(id)
@@ -189,37 +191,46 @@ const initDb = async () => {
     )
   `);
 
-  // Create admins table
+  // Create admins table with roles
   await run(`
     CREATE TABLE IF NOT EXISTS admins (
       username TEXT PRIMARY KEY,
       password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'ADMIN', -- 'ADMIN' or 'FINANCE'
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // Create audit_logs table
+  // Create audit_logs table with states and IP tracking
   await run(`
     CREATE TABLE IF NOT EXISTS audit_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL,
       action TEXT NOT NULL,
       details TEXT,
+      before_state TEXT,
+      after_state TEXT,
+      ip_address TEXT,
       timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // Seed default admin
-  const defaultAdmin = await get('SELECT * FROM admins LIMIT 1');
+  // Seed default admin accounts
+  const defaultAdmin = await get("SELECT * FROM admins WHERE username = 'admin'");
   if (!defaultAdmin) {
-    const passwordHash = await bcrypt.hash('password123', 10);
-    await run('INSERT INTO admins (username, password_hash) VALUES (?, ?)', ['admin', passwordHash]);
+    const adminHash = await bcrypt.hash('password123', 10);
+    await run('INSERT INTO admins (username, password_hash, role) VALUES (?, ?, ?)', ['admin', adminHash, 'ADMIN']);
+  }
+  
+  const defaultFinance = await get("SELECT * FROM admins WHERE username = 'finance'");
+  if (!defaultFinance) {
+    const financeHash = await bcrypt.hash('finance123', 10);
+    await run('INSERT INTO admins (username, password_hash, role) VALUES (?, ?, ?)', ['finance', financeHash, 'FINANCE']);
   }
 
   // Seed default platform & ledger accounts if empty
   const defaultPlatform = await get('SELECT * FROM platforms LIMIT 1');
   if (!defaultPlatform) {
-    // Seed StableFlow Platform
     const platformId = 'platform_stableflow_1';
     await run(
       'INSERT INTO platforms (id, name, commission_type, commission_value, settlement_cycle, vendor_split_pct, platform_split_pct) VALUES (?, ?, ?, ?, ?, ?, ?)',
@@ -261,6 +272,12 @@ const initDb = async () => {
     await run(
       'INSERT INTO marketplace_items (id, platform_id, vendor_id, name, price) VALUES (?, ?, ?, ?, ?)',
       ['item_vip_ticket', platformId, vendor2, 'Lagos Tech Fest VIP Pass', 50000.0]
+    );
+    
+    // Seed a high value item for testing threshold authorization limit (₦5,000,000+)
+    await run(
+      'INSERT INTO marketplace_items (id, platform_id, vendor_id, name, price) VALUES (?, ?, ?, ?, ?)',
+      ['item_mega_concert', platformId, vendor2, 'Mega Festival Premium Sponsorship', 6000000.0]
     );
   }
 };
