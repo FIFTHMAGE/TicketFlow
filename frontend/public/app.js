@@ -2,7 +2,7 @@ let activeEvent = null;
 let activeTransactionId = null;
 let activePaymentGateway = 'basqet';
 
-const API_BASE = '/api';
+const API_BASE = '/api-v1';
 
 window.addEventListener('DOMContentLoaded', () => {
   loadEvents();

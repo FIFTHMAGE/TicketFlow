@@ -63,7 +63,7 @@ app.use(cors({
 // ── Raw body capture for webhook HMAC ──────────────────────────────────────
 // Must be registered BEFORE express.json() for webhook routes
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api/webhooks/')) {
+  if (req.path.startsWith('/api/webhooks/') || req.path.startsWith('/api-v1/webhooks/')) {
     let data = '';
     req.setEncoding('utf8');
     req.on('data', (chunk) => { data += chunk; });
@@ -103,6 +103,14 @@ const webhookLimiter = rateLimit({
 // ── Static file serving ───────────────────────────────────────────────────
 app.use('/admin', requireAdmin, express.static(path.join(__dirname, '../frontend/admin')));
 app.use(express.static(path.join(__dirname, '../frontend/public')));
+
+// URL translation middleware: map /api-v1/* internally to /api/*
+app.use((req, res, next) => {
+  if (req.url.startsWith('/api-v1/')) {
+    req.url = req.url.replace('/api-v1/', '/api/');
+  }
+  next();
+});
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 app.post('/api/auth/login', authLimiter, async (req, res) => {
