@@ -399,8 +399,8 @@ app.post(['/api/basqet/pay-initiate', '/api-v1/basqet/pay-initiate'], paymentLim
       }
 
       await db.run(
-        'UPDATE transactions SET status = ?, crypto_currency_id = ?, crypto_amount = ?, payment_address = ? WHERE reference = ?',
-        ['PAYMENT_PENDING', currencyId, payData.data?.payment_amount, payData.data?.payment_address, transactionId]
+        'UPDATE transactions SET id = ?, status = ?, crypto_currency_id = ?, crypto_amount = ?, payment_address = ? WHERE reference = ?',
+        [basqetTxId, 'PAYMENT_PENDING', currencyId, payData.data?.payment_amount, payData.data?.payment_address, transactionId]
       );
 
       return res.json({ status: 'success', data: payData.data });
@@ -530,7 +530,7 @@ app.post(['/api/basqet/verify', '/api-v1/basqet/verify'], async (req, res) => {
 
     if (process.env.BASQET_PRIVATE_KEY && process.env.BASQET_API_URL) {
       // Query the real Basqet API for transaction status
-      const basqetResp = await fetch(`${process.env.BASQET_API_URL}/v1/transaction/${transactionId}`, {
+      const basqetResp = await fetch(`${process.env.BASQET_API_URL}/v1/transaction/${tx.id}/status`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${process.env.BASQET_PRIVATE_KEY}`,
