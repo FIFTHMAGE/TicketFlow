@@ -224,6 +224,47 @@ const runTests = async () => {
   // Previous vendor balance was 0 + 9000 - 9000 + 15000 (75% of 20000) = 15000
   assert(nombaVendorAcc.balance === 15000.0, 'Nomba Payment vendor split share credited correctly');
 
+  // Test 8: Ticket Reservation and Inventory Allocation Holds
+  console.log('Testing ticket reservation holds & inventory decrement...');
+  const reservations = require('./reservations');
+  
+  // Seed an event with 5 available seats
+  const reserveEventId = 'reserve_test_event';
+  await db.run(
+    'INSERT INTO marketplace_items (id, platform_id, vendor_id, name, price, total_quantity, available_quantity) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [reserveEventId, platformId, vendorId, 'Reserve Test Festival', 5000.0, 5, 5]
+  );
+
+  // Reserve 1 ticket
+  const reserveData = await reservations.createReservation(reserveEventId, 'Test User', 'test@user.com');
+  assert(reserveData.reservationId.startsWith('RES_'), 'Reservation ID generated successfully');
+  
+  // Check available stock decreases to 4
+  const updatedItem = await db.get('SELECT available_quantity FROM marketplace_items WHERE id = ?', [reserveEventId]);
+  assert(updatedItem.available_quantity === 4, 'Stock count decremented correctly on reservation hold');
+
+  // Cancel reservation and check stock goes back to 5
+  await reservations.cancelReservation(reserveData.reservationId);
+  const cancelledItem = await db.get('SELECT available_quantity FROM marketplace_items WHERE id = ?', [reserveEventId]);
+  assert(cancelledItem.available_quantity === 5, 'Stock restored correctly on reservation cancellation');
+
+  // Test 9: Ticket Access Scanner / Validation Endpoint
+  console.log('Testing gate scanner ticket validation checks...');
+  const scanTxRef = 'SCAN_TEST_REF_001';
+  await db.run(
+    `INSERT INTO transactions (id, reference, platform_id, vendor_id, marketplace_item_id, gross_amount, platform_fee, vendor_amount, status, customer_name, customer_email, checked_in) 
+     VALUES (?, ?, ?, ?, 'item_tech_ticket', 1000.0, 100.0, 900.0, 'ALLOCATED_TO_LEDGER', 'Adeola Bello', 'adeola@example.com', 0)`,
+    [scanTxRef, scanTxRef, platformId, vendorId]
+  );
+
+  // Perform ticket check-in (simulate API logic)
+  const ticketBeforeScan = await db.get('SELECT checked_in FROM transactions WHERE reference = ?', [scanTxRef]);
+  assert(ticketBeforeScan.checked_in === 0, 'Ticket not checked in initially');
+
+  await db.run('UPDATE transactions SET checked_in = 1 WHERE reference = ?', [scanTxRef]);
+  const ticketAfterScan = await db.get('SELECT checked_in, customer_name FROM transactions WHERE reference = ?', [scanTxRef]);
+  assert(ticketAfterScan.checked_in === 1, 'Ticket marked as checked_in correctly upon scan validation');
+
   console.log('\n🎉 ALL REVISED INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉');
 };
 

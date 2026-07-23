@@ -166,7 +166,22 @@ const initDb = async () => {
         vendor_id TEXT NOT NULL REFERENCES vendors(id),
         name TEXT NOT NULL,
         price REAL NOT NULL,
-        status TEXT NOT NULL DEFAULT 'ACTIVE'
+        status TEXT NOT NULL DEFAULT 'ACTIVE',
+        total_quantity INTEGER NOT NULL DEFAULT 100,
+        available_quantity INTEGER NOT NULL DEFAULT 100
+      )
+    `);
+
+    await run(`
+      CREATE TABLE IF NOT EXISTS reservations (
+        id TEXT PRIMARY KEY,
+        marketplace_item_id TEXT NOT NULL REFERENCES marketplace_items(id),
+        transaction_id TEXT,
+        customer_name TEXT,
+        customer_email TEXT,
+        status TEXT NOT NULL DEFAULT 'ACTIVE',
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -187,6 +202,7 @@ const initDb = async () => {
         crypto_currency_id INTEGER,
         crypto_amount REAL,
         payment_address TEXT,
+        checked_in INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -318,8 +334,24 @@ const initDb = async () => {
         name TEXT NOT NULL,
         price REAL NOT NULL,
         status TEXT NOT NULL DEFAULT 'ACTIVE',
+        total_quantity INTEGER NOT NULL DEFAULT 100,
+        available_quantity INTEGER NOT NULL DEFAULT 100,
         FOREIGN KEY (platform_id) REFERENCES platforms(id),
         FOREIGN KEY (vendor_id) REFERENCES vendors(id)
+      )
+    `);
+
+    await run(`
+      CREATE TABLE IF NOT EXISTS reservations (
+        id TEXT PRIMARY KEY,
+        marketplace_item_id TEXT NOT NULL,
+        transaction_id TEXT,
+        customer_name TEXT,
+        customer_email TEXT,
+        status TEXT NOT NULL DEFAULT 'ACTIVE',
+        expires_at DATETIME NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (marketplace_item_id) REFERENCES marketplace_items(id)
       )
     `);
 
@@ -341,6 +373,7 @@ const initDb = async () => {
         crypto_currency_id INTEGER,
         crypto_amount REAL,
         payment_address TEXT,
+        checked_in INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (platform_id) REFERENCES platforms(id),
         FOREIGN KEY (vendor_id) REFERENCES vendors(id),
@@ -496,17 +529,17 @@ const initDb = async () => {
 
     // Seed Marketplace Items
     await run(
-      'INSERT INTO marketplace_items (id, platform_id, vendor_id, name, price) VALUES (?, ?, ?, ?, ?)',
-      ['item_tech_ticket', platformId, vendor1, 'Lagos Tech Fest Standard Pass', 10000.0]
+      'INSERT INTO marketplace_items (id, platform_id, vendor_id, name, price, total_quantity, available_quantity) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      ['item_tech_ticket', platformId, vendor1, 'Lagos Tech Fest Standard Pass', 10000.0, 200, 200]
     );
     await run(
-      'INSERT INTO marketplace_items (id, platform_id, vendor_id, name, price) VALUES (?, ?, ?, ?, ?)',
-      ['item_vip_ticket', platformId, vendor2, 'Lagos Tech Fest VIP Pass', 50000.0]
+      'INSERT INTO marketplace_items (id, platform_id, vendor_id, name, price, total_quantity, available_quantity) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      ['item_vip_ticket', platformId, vendor2, 'Lagos Tech Fest VIP Pass', 50000.0, 50, 50]
     );
     
     await run(
-      'INSERT INTO marketplace_items (id, platform_id, vendor_id, name, price) VALUES (?, ?, ?, ?, ?)',
-      ['item_mega_concert', platformId, vendor2, 'Mega Festival Premium Sponsorship', 6000000.0]
+      'INSERT INTO marketplace_items (id, platform_id, vendor_id, name, price, total_quantity, available_quantity) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      ['item_mega_concert', platformId, vendor2, 'Mega Festival Premium Sponsorship', 6000000.0, 10, 10]
     );
   }
 };

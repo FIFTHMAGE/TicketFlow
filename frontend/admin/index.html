@@ -229,10 +229,46 @@
         <span class="status-badge" id="reconciliation-status">
           <span class="status-indicator-green"></span> Reconciled
         </span>
+        <button class="btn-primary" style="padding: 8px 16px; font-size: 0.85rem;" onclick="openCreateEventModal()">+ Create Event</button>
+        <a href="/admin/scanner.html" class="btn-ghost" style="text-decoration: none; display: flex; align-items: center; gap: 6px;">
+          <span>🎟️</span> Gate Scanner
+        </a>
         <button class="btn-ghost" onclick="logout()">Sign Out</button>
       </div>
     </div>
   </nav>
+
+  <!-- Create Event Modal -->
+  <div id="event-modal" style="display:none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="panel-section" style="width: 100%; max-width: 450px; background: var(--charcoal); border: 1px solid var(--line); border-radius: 12px; padding: 24px; margin: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin:0;">Create New Event</h3>
+        <button onclick="closeCreateEventModal()" style="background:none; border:none; color:var(--sand); font-size: 1.5rem; cursor:pointer;">&times;</button>
+      </div>
+      <form id="create-event-form" onsubmit="submitNewEvent(event)">
+        <div style="margin-bottom: 14px;">
+          <label style="display:block; font-size: 0.8rem; color: var(--sand); margin-bottom: 6px;">Event Name</label>
+          <input type="text" id="event-name" required style="width:100%; background:var(--charcoal-2); border:1px solid var(--line); border-radius:6px; padding: 10px; color:#fff;" />
+        </div>
+        <div style="margin-bottom: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label style="display:block; font-size: 0.8rem; color: var(--sand); margin-bottom: 6px;">Ticket Price (₦)</label>
+            <input type="number" id="event-price" min="0" required style="width:100%; background:var(--charcoal-2); border:1px solid var(--line); border-radius:6px; padding: 10px; color:#fff;" />
+          </div>
+          <div>
+            <label style="display:block; font-size: 0.8rem; color: var(--sand); margin-bottom: 6px;">Total Quantity</label>
+            <input type="number" id="event-qty" min="1" required style="width:100%; background:var(--charcoal-2); border:1px solid var(--line); border-radius:6px; padding: 10px; color:#fff;" />
+          </div>
+        </div>
+        <div style="margin-bottom: 20px;">
+          <label style="display:block; font-size: 0.8rem; color: var(--sand); margin-bottom: 6px;">Vendor ID</label>
+          <input type="text" id="event-vendor" placeholder="e.g. vendor_tix_organizer" required style="width:100%; background:var(--charcoal-2); border:1px solid var(--line); border-radius:6px; padding: 10px; color:#fff;" />
+        </div>
+        <button type="submit" class="btn-primary" style="width:100%;">Publish Event</button>
+      </form>
+    </div>
+  </div>
+
 
   <main class="dashboard-layout">
     <!-- Left: Accounts & Actions -->

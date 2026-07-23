@@ -27,6 +27,7 @@ const db = require('./db');
 const ledger = require('./ledger');
 const settlement = require('./settlement');
 const reconciliation = require('./reconciliation');
+const reservations = require('./reservations');
 const { sendTicketEmail } = require('./mailer');
 const { requireAdmin, JWT_SECRET } = require('./middleware/auth');
 const { handleBasqetWebhook } = require('./webhooks/basqet');
@@ -188,6 +189,7 @@ app.post('/api/vendor/resend-verification', authLimiter, async (req, res) => {
 // ── Public storefront APIs ────────────────────────────────────────────────
 app.get('/api/events', async (req, res) => {
   try {
+    await reservations.expireStale(); // flush expired holds before returning counts
     const items = await db.all(`
       SELECT m.*, p.name as platform_name, v.name as vendor_name 
       FROM marketplace_items m
@@ -200,6 +202,44 @@ app.get('/api/events', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ── Ticket Reservation ────────────────────────────────────────────────────
+app.post('/api/reserve', paymentLimiter, async (req, res) => {
+  const { eventId, customerName, customerEmail } = req.body;
+
+  if (!eventId) return res.status(400).json({ error: 'eventId is required' });
+  if (!customerName) return res.status(400).json({ error: 'customerName is required' });
+  if (!customerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+    return res.status(400).json({ error: 'A valid customerEmail is required' });
+  }
+
+  try {
+    const result = await reservations.createReservation(eventId, customerName, customerEmail);
+    res.status(201).json({ status: 'reserved', ...result });
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ error: err.message });
+  }
+});
+
+app.get('/api/reserve/:id', async (req, res) => {
+  try {
+    const data = await reservations.getReservation(req.params.id);
+    res.json(data);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/reserve/:id', async (req, res) => {
+  try {
+    const result = await reservations.cancelReservation(req.params.id);
+    res.json(result);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 
 app.get('/api/public-stats', async (req, res) => {
   try {
@@ -218,8 +258,9 @@ app.get('/api/public-stats', async (req, res) => {
 });
 
 // ── Checkout: initiate purchase ───────────────────────────────────────────
+// ── Checkout: convert reservation → transaction ───────────────────────────
 app.post('/api/purchase', paymentLimiter, async (req, res) => {
-  const { eventId, customerName, customerEmail } = req.body;
+  const { eventId, customerName, customerEmail, reservationId } = req.body;
 
   if (!eventId) return res.status(400).json({ error: 'eventId is required' });
   if (!customerName) return res.status(400).json({ error: 'customerName is required' });
@@ -228,6 +269,26 @@ app.post('/api/purchase', paymentLimiter, async (req, res) => {
   }
 
   try {
+    // Validate reservation if one was provided
+    if (reservationId) {
+      const reservation = await db.get('SELECT * FROM reservations WHERE id = ?', [reservationId]);
+      if (!reservation) return res.status(404).json({ error: 'Reservation not found' });
+      if (reservation.status !== 'ACTIVE') {
+        return res.status(410).json({ error: `Reservation is ${reservation.status.toLowerCase()} — please start over` });
+      }
+      if (new Date(reservation.expires_at) <= new Date()) {
+        await db.run("UPDATE reservations SET status = 'EXPIRED' WHERE id = ?", [reservationId]);
+        await db.run(
+          'UPDATE marketplace_items SET available_quantity = available_quantity + 1 WHERE id = ? AND available_quantity < total_quantity',
+          [reservation.marketplace_item_id]
+        );
+        return res.status(410).json({ error: 'Your reservation has expired. Please reserve again.' });
+      }
+      if (reservation.marketplace_item_id !== eventId) {
+        return res.status(400).json({ error: 'Reservation does not match the selected event' });
+      }
+    }
+
     const item = await db.get('SELECT * FROM marketplace_items WHERE id = ?', [eventId]);
     if (!item) return res.status(404).json({ error: 'Event not found' });
 
@@ -246,6 +307,11 @@ app.post('/api/purchase', paymentLimiter, async (req, res) => {
       [reference, reference, item.platform_id, item.vendor_id, item.id, grossAmount, platformFee, vendorAmount, 'INITIATED', customerName, customerEmail]
     );
 
+    // Link reservation to this transaction
+    if (reservationId) {
+      await db.run('UPDATE reservations SET transaction_id = ? WHERE id = ?', [reference, reservationId]);
+    }
+
     res.json({
       message: 'Transaction initialized',
       transaction: {
@@ -254,6 +320,7 @@ app.post('/api/purchase', paymentLimiter, async (req, res) => {
         status: 'INITIATED',
         amount: grossAmount,
         currency: 'NGN',
+        reservationId: reservationId || null,
         customer: { name: customerName, email: customerEmail }
       }
     });
@@ -392,6 +459,16 @@ app.post('/api/basqet/confirm-simulation', requireAdmin, async (req, res) => {
     );
     await ledger.recordPurchase(tx.reference, tx.gross_amount, tx.platform_id, tx.vendor_id);
 
+    // Convert the reservation if exists
+    try {
+      const reservation = await db.get('SELECT id FROM reservations WHERE transaction_id = ?', [transactionId]);
+      if (reservation) {
+        await reservations.convertReservation(reservation.id);
+      }
+    } catch (resErr) {
+      console.warn('[SIM-BASQET] Reservation conversion failed (non-fatal):', resErr.message);
+    }
+
     try {
       await sendTicketEmail(tx, tx.customer_email, tx.customer_name);
     } catch (mailErr) {
@@ -418,6 +495,16 @@ app.post('/api/nomba/confirm-simulation', requireAdmin, async (req, res) => {
       ['PAYMENT_CONFIRMED', tx.gross_amount, transactionId]
     );
     await ledger.recordPurchase(tx.reference, tx.gross_amount, tx.platform_id, tx.vendor_id);
+
+    // Convert the reservation if exists
+    try {
+      const reservation = await db.get('SELECT id FROM reservations WHERE transaction_id = ?', [transactionId]);
+      if (reservation) {
+        await reservations.convertReservation(reservation.id);
+      }
+    } catch (resErr) {
+      console.warn('[SIM-NOMBA] Reservation conversion failed (non-fatal):', resErr.message);
+    }
 
     try {
       await sendTicketEmail(tx, tx.customer_email, tx.customer_name);
@@ -511,6 +598,82 @@ app.post('/api/admin/refund', requireAdmin, async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
+
+// ── Ticket Validation / Scan Endpoint ──────────────────────────────────────
+app.post('/api/scan', requireAdmin, async (req, res) => {
+  const { reference } = req.body;
+  if (!reference) return res.status(400).json({ error: 'reference is required' });
+
+  try {
+    const tx = await db.get('SELECT * FROM transactions WHERE reference = ?', [reference]);
+    if (!tx) {
+      return res.status(404).json({ error: 'Invalid Ticket: Reference not found' });
+    }
+
+    if (tx.status !== 'ALLOCATED_TO_LEDGER' && tx.status !== 'PAYMENT_CONFIRMED') {
+      return res.status(400).json({ error: `Invalid Ticket: Payment status is ${tx.status}` });
+    }
+
+    if (tx.checked_in === 1) {
+      return res.status(409).json({
+        error: 'Ticket Already Used',
+        checkedInAt: tx.updated_at || tx.created_at,
+        customerName: tx.customer_name
+      });
+    }
+
+    await db.run('UPDATE transactions SET checked_in = 1 WHERE reference = ?', [reference]);
+
+    // Record check-in to audit logs
+    await db.run(
+      'INSERT INTO audit_logs (username, action, details) VALUES (?, ?, ?)',
+      [req.admin.username, 'TICKET_CHECKIN', `Ticket ${reference} scanned and checked in successfully`]
+    );
+
+    res.json({
+      status: 'success',
+      message: 'Access Granted: Ticket Validated',
+      ticket: {
+        reference: tx.reference,
+        customerName: tx.customer_name,
+        customerEmail: tx.customer_email,
+        grossAmount: tx.gross_amount
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Admin Event Creation ──────────────────────────────────────────────────
+app.post('/api/admin/events', requireAdmin, async (req, res) => {
+  const { name, price, qty, vendorId } = req.body;
+  if (!name || !price || !qty || !vendorId) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  try {
+    const vendor = await db.get('SELECT * FROM vendors WHERE id = ?', [vendorId]);
+    if (!vendor) return res.status(404).json({ error: 'Vendor not found' });
+
+    const eventId = `item_evt_${Date.now()}`;
+    await db.run(
+      'INSERT INTO marketplace_items (id, platform_id, vendor_id, name, price, total_quantity, available_quantity) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [eventId, vendor.platform_id, vendorId, name, price, qty, qty]
+    );
+
+    await db.run(
+      'INSERT INTO audit_logs (username, action, details) VALUES (?, ?, ?)',
+      [req.admin.username, 'CREATE_EVENT', `Event created: ${name} (₦${price}, Stock: ${qty}) for vendor ${vendorId}`]
+    );
+
+    res.status(201).json({ status: 'success', eventId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
 db.initDb().then(() => {

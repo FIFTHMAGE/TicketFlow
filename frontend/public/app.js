@@ -24,16 +24,27 @@ async function loadEvents() {
     events.forEach(event => {
       const card = document.createElement('div');
       card.className = 'event-card';
+      const isSoldOut = event.available_quantity <= 0;
+      const buttonHtml = isSoldOut 
+        ? `<button class="btn-primary" disabled style="background-color: var(--line); color: var(--sand); cursor: not-allowed; transform: none;">Sold Out</button>`
+        : `<button class="btn-primary" onclick="openCheckout('${event.id}', ${event.price})">Buy Ticket</button>`;
+
+      const stockColor = event.available_quantity < 10 ? '#ef4444' : 'var(--sand)';
+      const stockText = isSoldOut 
+        ? `<span style="color: #ef4444; font-weight: bold;">Sold Out</span>`
+        : `<span style="color: ${stockColor}; font-weight: 500;">${event.available_quantity} left</span> of ${event.total_quantity}`;
+
       card.innerHTML = `
         <div>
           <div class="event-title">${event.name}</div>
-          <div class="event-meta">
-            <span>Organizer: ${event.vendor_name}</span>
+          <div class="event-meta" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+            <span style="font-size: 0.8rem;">Organizer: ${event.vendor_name}</span>
+            <span style="font-size: 0.78rem; color: var(--sand);">${stockText}</span>
           </div>
         </div>
         <div class="event-price-row">
           <div class="event-price">₦${event.price.toLocaleString()}</div>
-          <button class="btn-primary" onclick="openCheckout('${event.id}', ${event.price})">Buy Ticket</button>
+          ${buttonHtml}
         </div>
       `;
       container.appendChild(card);
@@ -121,6 +132,38 @@ function renderTicker(entries) {
   track.innerHTML = build() + build();
 }
 
+let activeReservationId = null;
+let countdownInterval = null;
+
+function startReservationTimer(expiresAt) {
+  if (countdownInterval) clearInterval(countdownInterval);
+  const banner = document.getElementById('reservation-timer-banner');
+  const timerText = document.getElementById('hold-countdown-time');
+  banner.style.display = 'block';
+
+  const target = new Date(expiresAt).getTime();
+
+  function update() {
+    const now = Date.now();
+    const diff = target - now;
+
+    if (diff <= 0) {
+      clearInterval(countdownInterval);
+      timerText.textContent = "Expired";
+      alert("Your ticket reservation has expired. Please select the event again.");
+      closeCheckout();
+      return;
+    }
+
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    timerText.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  update();
+  countdownInterval = setInterval(update, 1000);
+}
+
 function openCheckout(eventId, price) {
   activeEvent = eventId;
   
@@ -130,12 +173,30 @@ function openCheckout(eventId, price) {
   document.getElementById('checkout-modal').classList.add('active');
   document.getElementById('checkout-step-init').classList.remove('hidden');
   document.getElementById('checkout-step-pay').classList.add('hidden');
+  
+  // Reset reservation state
+  activeReservationId = null;
+  document.getElementById('reservation-timer-banner').style.display = 'none';
+  if (countdownInterval) clearInterval(countdownInterval);
 }
 
-function closeCheckout() {
+async function closeCheckout() {
   document.getElementById('checkout-modal').classList.remove('active');
+  if (countdownInterval) clearInterval(countdownInterval);
+
+  // If a reservation was created but not paid/converted, release it immediately on cancel
+  if (activeReservationId && !activeTransactionId) {
+    try {
+      await fetch(`${API_BASE}/reserve/${activeReservationId}`, { method: 'DELETE' });
+    } catch (e) {
+      console.warn("Could not release reservation:", e);
+    }
+  }
+
   activeEvent = null;
   activeTransactionId = null;
+  activeReservationId = null;
+  loadEvents(); // refresh catalogs and remaining quantity instantly
 }
 
 async function initiatePayment(currencyId) {
@@ -153,10 +214,27 @@ async function initiatePayment(currencyId) {
   }
 
   try {
+    // 1. Reserve the ticket first
+    if (!activeReservationId) {
+      const resVal = await fetch(`${API_BASE}/reserve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: activeEvent, customerName, customerEmail })
+      });
+      const resData = await resVal.json();
+      if (!resVal.ok) {
+        alert(resData.error || 'Failed to reserve ticket');
+        return;
+      }
+      activeReservationId = resData.reservationId;
+      startReservationTimer(resData.expiresAt);
+    }
+
+    // 2. Initialize purchase linking reservation
     const res = await fetch(`${API_BASE}/purchase`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventId: activeEvent, customerName, customerEmail })
+      body: JSON.stringify({ eventId: activeEvent, customerName, customerEmail, reservationId: activeReservationId })
     });
     const initData = await res.json();
     const transaction = initData.transaction;
@@ -204,10 +282,27 @@ async function initiateNombaPayment() {
   }
 
   try {
+    // 1. Reserve the ticket first
+    if (!activeReservationId) {
+      const resVal = await fetch(`${API_BASE}/reserve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ eventId: activeEvent, customerName, customerEmail })
+      });
+      const resData = await resVal.json();
+      if (!resVal.ok) {
+        alert(resData.error || 'Failed to reserve ticket');
+        return;
+      }
+      activeReservationId = resData.reservationId;
+      startReservationTimer(resData.expiresAt);
+    }
+
+    // 2. Initialize purchase linking reservation
     const res = await fetch(`${API_BASE}/purchase`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventId: activeEvent, customerName, customerEmail })
+      body: JSON.stringify({ eventId: activeEvent, customerName, customerEmail, reservationId: activeReservationId })
     });
     const initData = await res.json();
     const transaction = initData.transaction;
@@ -263,6 +358,7 @@ async function confirmPaymentSimulation() {
     
     if (data.status === 'success') {
       alert(`Simulated ${activePaymentGateway === 'nomba' ? 'Nomba' : 'Basqet'} Payment Complete. Ledger updated.`);
+      activeReservationId = null; // cleared since it's converted
       closeCheckout();
       loadPublicStats(); // refresh visual dashboard instantly
     }
@@ -271,3 +367,4 @@ async function confirmPaymentSimulation() {
     alert('Verification failed');
   }
 }
+

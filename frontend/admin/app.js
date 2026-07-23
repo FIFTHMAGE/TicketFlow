@@ -252,3 +252,42 @@ async function refundTransaction(transactionId) {
     console.error(err);
   }
 }
+
+// ── Event Creator Modal Helpers ───────────────────────────────────────────
+function openCreateEventModal() {
+  document.getElementById('event-modal').style.display = 'flex';
+}
+
+function closeCreateEventModal() {
+  document.getElementById('event-modal').style.display = 'none';
+  document.getElementById('create-event-form').reset();
+}
+
+async function submitNewEvent(e) {
+  e.preventDefault();
+  const name = document.getElementById('event-name').value.trim();
+  const price = parseFloat(document.getElementById('event-price').value);
+  const qty = parseInt(document.getElementById('event-qty').value, 10);
+  const vendorId = document.getElementById('event-vendor').value.trim();
+
+  try {
+    const res = await fetchWithAuth('/api/admin/events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, price, qty, vendorId })
+    });
+
+    if (res.ok) {
+      alert(`Successfully published event: ${name}`);
+      closeCreateEventModal();
+      loadLedgerDashboard(); // refresh events lists
+    } else {
+      const errData = await res.json();
+      alert(`Error: ${errData.error}`);
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Failed to publish event');
+  }
+}
+

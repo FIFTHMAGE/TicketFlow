@@ -71,6 +71,17 @@ async function handleBasqetWebhook(req, res) {
         );
         await ledger.recordPurchase(tx.reference, tx.gross_amount, tx.platform_id, tx.vendor_id);
 
+        // Convert the reservation if exists
+        try {
+          const reservations = require('../reservations');
+          const reservation = await db.get('SELECT id FROM reservations WHERE transaction_id = ?', [reference]);
+          if (reservation) {
+            await reservations.convertReservation(reservation.id);
+          }
+        } catch (resErr) {
+          console.warn('[BASQET] Reservation conversion failed (non-fatal):', resErr.message);
+        }
+
         // Send ticket email after confirmed ledger allocation
         try {
           await sendTicketEmail(tx);

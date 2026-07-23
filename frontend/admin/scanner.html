@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticket Scanner — StableFlow Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #0B0D0A;
+      --charcoal: #171912;
+      --charcoal-2: #1F221A;
+      --green: #92CB3C;
+      --green-dim: #6E9A2C;
+      --sand: #C9C2AC;
+      --off-white: #EDEDE6;
+      --line: rgba(237, 237, 230, 0.12);
+      --red: #ef4444;
+      --yellow: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--ink);
+      color: var(--off-white);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
+      border-bottom: 1px solid var(--line);
+      background: var(--charcoal);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      text-decoration: none;
+      color: var(--off-white);
+    }
+    .logo-mark {
+      width: 20px;
+      height: 12px;
+      background: var(--green);
+      border-radius: 3px;
+    }
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--sand);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      text-decoration: none;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.03); }
+
+    .main {
+      flex: 1;
+      max-width: 600px;
+      width: 100%;
+      margin: 40px auto;
+      padding: 0 16px;
+    }
+
+    .card {
+      background: var(--charcoal);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+    }
+
+    h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--sand);
+      margin-bottom: 24px;
+    }
+
+    .scan-area {
+      background: var(--charcoal-2);
+      border: 2px dashed var(--line);
+      border-radius: 12px;
+      padding: 40px 20px;
+      margin-bottom: 24px;
+      position: relative;
+      overflow: hidden;
+      min-height: 240px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .scan-icon {
+      font-size: 40px;
+      color: var(--sand);
+      margin-bottom: 12px;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--sand);
+      text-align: left;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      background: var(--charcoal-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 14px;
+      color: var(--off-white);
+      font-size: 1rem;
+      font-family: monospace;
+      outline: none;
+      text-align: center;
+    }
+    input:focus { border-color: var(--green); }
+
+    .btn-primary {
+      width: 100%;
+      background: var(--green);
+      color: var(--ink);
+      border: none;
+      border-radius: 8px;
+      padding: 14px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary:hover { background: #a3dc4c; }
+
+    /* Results styling */
+    .result-box {
+      margin-top: 24px;
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: none;
+      text-align: left;
+    }
+    .result-box.show { display: block; }
+    
+    .result-box.success {
+      background: rgba(146, 203, 60, 0.08);
+      border: 1px solid rgba(146, 203, 60, 0.2);
+    }
+    .result-box.error {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    
+    .result-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .result-box.success .result-title { color: var(--green); }
+    .result-box.error .result-title { color: var(--red); }
+
+    .result-details {
+      font-size: 0.85rem;
+      color: var(--sand);
+      line-height: 1.6;
+    }
+    .result-details strong { color: var(--off-white); }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="/admin/index.html" class="logo">
+      <div class="logo-mark"></div>
+      stub<span style="font-size: 0.75rem; color: var(--sand); margin-left: 6px;">Check-In</span>
+    </a>
+    <a href="/admin/index.html" class="btn-ghost">← Back to Console</a>
+  </nav>
+
+  <div class="main">
+    <div class="card">
+      <h1>Gate Pass Scanner</h1>
+      <p class="subtitle">Enter ticket reference code to validate admission</p>
+
+      <div class="scan-area" id="scan-container">
+        <div class="scan-icon">🎟️</div>
+        <p style="font-size: 0.88rem; color: var(--sand); max-width: 250px;">Use the form below to enter the ticket reference code manually.</p>
+      </div>
+
+      <div id="alert-box" class="result-box">
+        <div class="result-title" id="alert-title"></div>
+        <div class="result-details" id="alert-details"></div>
+      </div>
+
+      <form id="scan-form" autocomplete="off" style="margin-top: 10px;">
+        <div class="input-group">
+          <label for="reference">Ticket Reference Code</label>
+          <input type="text" id="reference" placeholder="e.g. SF_1784920251..." required />
+        </div>
+        <button type="submit" class="btn-primary" id="scan-btn">Validate Ticket</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('admin_token');
+    if (!token) {
+      window.location.href = '/login.html';
+    }
+
+    document.getElementById('scan-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('scan-btn');
+      const input = document.getElementById('reference');
+      const ref = input.value.trim();
+      
+      const alertBox = document.getElementById('alert-box');
+      const alertTitle = document.getElementById('alert-title');
+      const alertDetails = document.getElementById('alert-details');
+
+      alertBox.className = 'result-box';
+      alertBox.style.display = 'none';
+
+      if (!ref) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Verifying…';
+
+      try {
+        const res = await fetch('/api/scan', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ reference: ref })
+        });
+        const data = await res.json();
+
+        alertBox.style.display = 'block';
+
+        if (res.ok) {
+          alertBox.classList.add('success');
+          alertTitle.innerHTML = '✦ Access Granted';
+          alertDetails.innerHTML = `
+            Ticket validated successfully.<br/><br/>
+            Guest Name: <strong>${data.ticket.customerName}</strong><br/>
+            Email: <strong>${data.ticket.customerEmail}</strong><br/>
+            Paid: <strong>₦${data.ticket.grossAmount.toLocaleString()}</strong>
+          `;
+          input.value = ''; // clear input on success
+        } else {
+          alertBox.classList.add('error');
+          alertTitle.innerHTML = '⚠ Access Denied';
+          alertDetails.innerHTML = data.error || 'Invalid or expired ticket';
+        }
+      } catch (err) {
+        alertBox.classList.add('error');
+        alertTitle.innerHTML = '⚠ Network Error';
+        alertDetails.textContent = 'Could not contact verification server.';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Validate Ticket';
+      }
+    });
+  </script>
+</body>
+</html>
