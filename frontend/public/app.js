@@ -264,12 +264,30 @@ async function initiatePayment(currencyId) {
     if (payData.status === 'success') {
       const details = payData.data;
       
+      let ticker = details.ticker || details.payment_currency;
+      if (!ticker) {
+        if (currencyId === 3) ticker = 'USDT';
+        else if (currencyId === 4) ticker = 'BTC';
+        else if (currencyId === 6) ticker = 'ETH';
+        else ticker = 'Crypto';
+      }
+
+      // Handle raw string or number conversion for payment_amount
+      const rawAmt = details.payment_amount;
+      const amtNum = typeof rawAmt === 'string' ? parseFloat(rawAmt) : rawAmt;
+      const amtFormatted = amtNum ? amtNum.toFixed(6) : '0.000000';
+
       document.getElementById('checkout-price-fiat').innerText = `₦${transaction.amount.toLocaleString()}`;
-      document.getElementById('checkout-price-crypto').innerText = `${details.payment_amount.toFixed(6)} ${details.ticker}`;
+      document.getElementById('checkout-price-crypto').innerText = `${amtFormatted} ${ticker}`;
       document.getElementById('deposit-address').value = details.payment_address;
       
       const qrBox = document.getElementById('qr-code-box');
-      qrBox.innerHTML = `<div class="mock-qr">${details.ticker} QR</div>`;
+      // If Basqet returns a Base64 qrCode, render it — otherwise show fallback mock
+      if (details.qrCode) {
+        qrBox.innerHTML = `<img src="${details.qrCode}" alt="QR Code" style="max-width: 150px; margin: 0 auto; display: block;">`;
+      } else {
+        qrBox.innerHTML = `<div class="mock-qr">${ticker} QR</div>`;
+      }
 
       document.getElementById('checkout-title').innerText = 'Complete Payment';
       document.getElementById('checkout-step-init').classList.add('hidden');
