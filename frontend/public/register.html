@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create an Account — StableFlow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #0B0D0A;
+      --charcoal: #171912;
+      --charcoal-2: #1F221A;
+      --green: #92CB3C;
+      --green-dim: #6E9A2C;
+      --sand: #C9C2AC;
+      --off-white: #EDEDE6;
+      --line: rgba(237,237,230,0.12);
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      background: var(--ink);
+      color: var(--off-white);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Nav ─────────────────────────────────────────── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--line);
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      text-decoration: none;
+      color: var(--off-white);
+    }
+    .logo-mark {
+      width: 20px;
+      height: 12px;
+      background: var(--green);
+      border-radius: 3px;
+    }
+    .nav-signin {
+      font-size: 0.85rem;
+      color: var(--sand);
+    }
+    .nav-signin a {
+      color: var(--green);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    /* ── Page Layout ─────────────────────────────────── */
+    .page {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+    .card {
+      width: 100%;
+      max-width: 560px;
+      background: var(--charcoal);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+    .card-body {
+      padding: 40px 40px 32px;
+    }
+    .card-footer {
+      padding: 20px 40px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      gap: 12px;
+    }
+
+    /* ── Header ──────────────────────────────────────── */
+    .page-label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.72rem;
+      color: var(--green);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 0.875rem;
+      color: var(--sand);
+      margin-bottom: 28px;
+    }
+
+    /* ── Step Indicators ─────────────────────────────── */
+    .steps {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 32px;
+    }
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: default;
+    }
+    .step-dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--sand);
+      flex-shrink: 0;
+      transition: all 0.25s;
+    }
+    .step.active .step-dot {
+      border-color: var(--green);
+      background: var(--green);
+      color: var(--ink);
+    }
+    .step.done .step-dot {
+      border-color: var(--green);
+      background: var(--green);
+      color: var(--ink);
+    }
+    .step-label {
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--sand);
+      white-space: nowrap;
+      transition: color 0.25s;
+    }
+    .step.active .step-label { color: var(--green); }
+    .step.done .step-label { color: var(--green); }
+    .step-line {
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+      margin: 0 10px;
+      min-width: 24px;
+      transition: background 0.25s;
+    }
+    .step-line.done { background: var(--green); }
+
+    /* ── Account Type Cards ──────────────────────────── */
+    .type-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .type-card {
+      background: var(--charcoal-2);
+      border: 2px solid var(--line);
+      border-radius: 14px;
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .type-card:hover { border-color: rgba(146,203,60,0.4); }
+    .type-card.selected {
+      border-color: var(--green);
+      background: rgba(146,203,60,0.06);
+    }
+    .type-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(146,203,60,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+    }
+    .type-icon svg { width: 28px; height: 28px; stroke: var(--sand); fill: none; stroke-width: 1.5; transition: stroke 0.2s; }
+    .type-card.selected .type-icon svg { stroke: var(--green); }
+    .type-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .type-desc {
+      font-size: 0.8rem;
+      color: var(--sand);
+      line-height: 1.5;
+    }
+    .type-radio {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid var(--line);
+      margin: 16px auto 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.2s;
+    }
+    .type-card.selected .type-radio {
+      border-color: var(--green);
+      background: var(--green);
+    }
+    .type-card.selected .type-radio::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--ink);
+    }
+
+    /* ── Form Fields ─────────────────────────────────── */
+    .form-group { margin-bottom: 18px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--sand);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    .field-hint { font-size: 0.72rem; color: rgba(201,194,172,0.6); margin-left: 6px; }
+    input, select {
+      width: 100%;
+      background: var(--charcoal-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 11px 14px;
+      color: var(--off-white);
+      font-size: 0.88rem;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.15s;
+      appearance: none;
+    }
+    input:focus, select:focus { border-color: var(--green); }
+    input.error, select.error { border-color: var(--red); }
+    .field-error { font-size: 0.72rem; color: var(--red); margin-top: 4px; display: none; }
+    .field-error.show { display: block; }
+    select option { background: var(--charcoal); }
+
+    /* ── Section title ───────────────────────────────── */
+    .section-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--off-white);
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    /* ── Confirmation screen ─────────────────────────── */
+    .confirm-screen {
+      text-align: center;
+      padding: 20px 0;
+    }
+    .confirm-icon {
+      width: 72px;
+      height: 72px;
+      background: rgba(146,203,60,0.1);
+      border: 2px solid rgba(146,203,60,0.25);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .confirm-icon svg { width: 32px; height: 32px; stroke: var(--green); fill: none; stroke-width: 2; }
+    .confirm-title { font-family: 'Space Grotesk', sans-serif; font-size: 1.25rem; font-weight: 700; margin-bottom: 8px; }
+    .confirm-sub { font-size: 0.875rem; color: var(--sand); line-height: 1.6; }
+    .confirm-email-badge {
+      display: inline-block;
+      background: rgba(146,203,60,0.1);
+      border: 1px solid rgba(146,203,60,0.2);
+      color: var(--green);
+      padding: 5px 14px;
+      border-radius: 20px;
+      font-size: 0.83rem;
+      font-weight: 600;
+      margin: 14px 0;
+    }
+    .resend-link { font-size: 0.82rem; color: var(--sand); margin-top: 16px; }
+    .resend-link button {
+      background: none;
+      border: none;
+      color: var(--green);
+      cursor: pointer;
+      font-size: inherit;
+      font-family: inherit;
+      font-weight: 600;
+      padding: 0;
+    }
+
+    /* ── Buttons ─────────────────────────────────────── */
+    .btn {
+      flex: 1;
+      padding: 13px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+    .btn-primary {
+      background: var(--green);
+      color: var(--ink);
+    }
+    .btn-primary:hover { background: #a3dc4c; }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--sand);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.04); }
+
+    /* ── Error alert ─────────────────────────────────── */
+    .alert-error {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.2);
+      color: #ef4444;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .alert-error.show { display: block; }
+
+    /* ── Hidden ──────────────────────────────────────── */
+    .step-panel { display: none; }
+    .step-panel.active { display: block; }
+
+    @media (max-width: 520px) {
+      .card-body { padding: 28px 20px 24px; }
+      .card-footer { padding: 16px 20px; }
+      .form-row { grid-template-columns: 1fr; }
+      .step-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="/" class="logo">
+      <div class="logo-mark"></div>
+      stub
+    </a>
+    <span class="nav-signin">Already have an account? <a href="/login.html">Sign in</a></span>
+  </nav>
+
+  <div class="page">
+    <div class="card">
+      <div class="card-body">
+
+        <!-- Header -->
+        <div class="page-label">Organiser Onboarding</div>
+        <h1>Create an account</h1>
+        <p class="subtitle">It's free to get started — payouts settle directly to your bank.</p>
+
+        <!-- Step Indicators -->
+        <div class="steps">
+          <div class="step active" id="step-ind-1">
+            <div class="step-dot" id="dot-1">✓</div>
+            <span class="step-label">Account type</span>
+          </div>
+          <div class="step-line" id="line-1"></div>
+          <div class="step" id="step-ind-2">
+            <div class="step-dot" id="dot-2">2</div>
+            <span class="step-label">About you</span>
+          </div>
+          <div class="step-line" id="line-2"></div>
+          <div class="step" id="step-ind-3">
+            <div class="step-dot" id="dot-3">3</div>
+            <span class="step-label">Bank details</span>
+          </div>
+          <div class="step-line" id="line-3"></div>
+          <div class="step" id="step-ind-4">
+            <div class="step-dot" id="dot-4">4</div>
+            <span class="step-label">Confirm email</span>
+          </div>
+        </div>
+
+        <!-- ── STEP 1: Account Type ── -->
+        <div class="step-panel active" id="panel-1">
+          <p class="section-title">Choose an account type</p>
+          <div class="type-grid">
+            <div class="type-card selected" id="type-personal" onclick="selectType('personal')">
+              <div class="type-icon">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              </div>
+              <div class="type-title">Personal</div>
+              <div class="type-desc">Selling tickets as an individual? This is the account type for you.</div>
+              <div class="type-radio"></div>
+            </div>
+            <div class="type-card" id="type-org" onclick="selectType('organization')">
+              <div class="type-icon">
+                <svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+              </div>
+              <div class="type-title">Organisation</div>
+              <div class="type-desc">Selling tickets as a registered business? This is the account type for you.</div>
+              <div class="type-radio"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── STEP 2: About You ── -->
+        <div class="step-panel" id="panel-2">
+          <p class="section-title">About you</p>
+          <div class="alert-error" id="step2-error"></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="first-name">First name</label>
+              <input type="text" id="first-name" placeholder="Adeola" />
+              <div class="field-error" id="err-first-name">Required</div>
+            </div>
+            <div class="form-group">
+              <label for="last-name">Last name</label>
+              <input type="text" id="last-name" placeholder="Bello" />
+              <div class="field-error" id="err-last-name">Required</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="email">Email address</label>
+            <input type="email" id="email" placeholder="adeola@example.com" />
+            <div class="field-error" id="err-email">Enter a valid email</div>
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone number</label>
+            <input type="tel" id="phone" placeholder="+234 800 000 0000" />
+            <div class="field-error" id="err-phone">Required</div>
+          </div>
+          <div class="form-group" id="org-name-group" style="display: none;">
+            <label for="org-name">Organisation name</label>
+            <input type="text" id="org-name" placeholder="Tech Fest Ltd" />
+            <div class="field-error" id="err-org-name">Required for organisations</div>
+          </div>
+        </div>
+
+        <!-- ── STEP 3: Bank Details ── -->
+        <div class="step-panel" id="panel-3">
+          <p class="section-title">Bank details <span class="field-hint">— for payouts</span></p>
+          <div class="alert-error" id="step3-error"></div>
+          <div class="form-group">
+            <label for="bank-name">Bank name</label>
+            <select id="bank-name">
+              <option value="">Select your bank</option>
+              <option value="Access Bank">Access Bank</option>
+              <option value="First Bank">First Bank</option>
+              <option value="GTBank">Guaranty Trust Bank (GTB)</option>
+              <option value="Kuda Bank">Kuda Bank</option>
+              <option value="Opay">Opay</option>
+              <option value="Palmpay">Palmpay</option>
+              <option value="UBA">United Bank for Africa (UBA)</option>
+              <option value="Wema Bank">Wema Bank</option>
+              <option value="Zenith Bank">Zenith Bank</option>
+              <option value="Other">Other</option>
+            </select>
+            <div class="field-error" id="err-bank-name">Select your bank</div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="account-number">Account number</label>
+              <input type="text" id="account-number" placeholder="0123456789" maxlength="10" inputmode="numeric" />
+              <div class="field-error" id="err-account-number">Enter a 10-digit account number</div>
+            </div>
+            <div class="form-group">
+              <label for="account-name">Account name</label>
+              <input type="text" id="account-name" placeholder="Auto-fetched" />
+              <div class="field-error" id="err-account-name">Required</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="password-new">Create a password</label>
+            <input type="password" id="password-new" placeholder="Min 8 characters" />
+            <div class="field-error" id="err-password-new">Must be at least 8 characters</div>
+          </div>
+          <div class="form-group">
+            <label for="password-confirm">Confirm password</label>
+            <input type="password" id="password-confirm" placeholder="Re-enter password" />
+            <div class="field-error" id="err-password-confirm">Passwords do not match</div>
+          </div>
+        </div>
+
+        <!-- ── STEP 4: Email Confirmation ── -->
+        <div class="step-panel" id="panel-4">
+          <div class="confirm-screen">
+            <div class="confirm-icon">
+              <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <div class="confirm-title">Check your inbox</div>
+            <p class="confirm-sub">We've sent a verification link to</p>
+            <div class="confirm-email-badge" id="confirm-email-display">—</div>
+            <p class="confirm-sub">Click the link in the email to activate your account.<br>It may take a minute or two to arrive.</p>
+            <div class="resend-link">
+              Didn't get it? <button onclick="resendEmail()">Resend email</button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /card-body -->
+
+      <!-- Footer buttons -->
+      <div class="card-footer">
+        <button class="btn btn-ghost" id="btn-back" onclick="goBack()">Back</button>
+        <button class="btn btn-primary" id="btn-continue" onclick="goNext()">Continue</button>
+      </div>
+
+    </div><!-- /card -->
+  </div>
+
+  <script>
+    let currentStep = 1;
+    let accountType = 'personal';
+    const TOTAL_STEPS = 4;
+
+    function selectType(type) {
+      accountType = type;
+      document.getElementById('type-personal').classList.toggle('selected', type === 'personal');
+      document.getElementById('type-org').classList.toggle('selected', type === 'organization');
+      document.getElementById('org-name-group').style.display = type === 'organization' ? 'block' : 'none';
+    }
+
+    function updateUI() {
+      // Show correct panel
+      for (let i = 1; i <= TOTAL_STEPS; i++) {
+        document.getElementById(`panel-${i}`).classList.toggle('active', i === currentStep);
+      }
+
+      // Update step indicators
+      for (let i = 1; i <= TOTAL_STEPS; i++) {
+        const ind = document.getElementById(`step-ind-${i}`);
+        const dot = document.getElementById(`dot-${i}`);
+        ind.className = 'step';
+        if (i < currentStep) {
+          ind.classList.add('done');
+          dot.textContent = '✓';
+        } else if (i === currentStep) {
+          ind.classList.add('active');
+          dot.textContent = i;
+        } else {
+          dot.textContent = i;
+        }
+        if (i < TOTAL_STEPS) {
+          const line = document.getElementById(`line-${i}`);
+          line.className = 'step-line' + (i < currentStep ? ' done' : '');
+        }
+      }
+
+      // Back button
+      const back = document.getElementById('btn-back');
+      const cont = document.getElementById('btn-continue');
+      back.style.display = currentStep === 1 ? 'none' : 'flex';
+      
+      if (currentStep === TOTAL_STEPS) {
+        cont.textContent = 'Go to Dashboard';
+        cont.onclick = () => { window.location.href = '/login.html'; };
+      } else {
+        cont.textContent = currentStep === 3 ? 'Create Account' : 'Continue';
+        cont.onclick = goNext;
+      }
+
+      if (currentStep === 1) back.style.display = 'none';
+    }
+
+    function clearErrors() {
+      document.querySelectorAll('.field-error').forEach(el => el.classList.remove('show'));
+      document.querySelectorAll('input, select').forEach(el => el.classList.remove('error'));
+      document.querySelectorAll('.alert-error').forEach(el => { el.classList.remove('show'); el.textContent = ''; });
+    }
+
+    function showFieldError(id, msg) {
+      const err = document.getElementById(`err-${id}`);
+      const input = document.getElementById(id);
+      if (err) { err.textContent = msg || err.textContent; err.classList.add('show'); }
+      if (input) input.classList.add('error');
+      return false;
+    }
+
+    function validateStep(step) {
+      clearErrors();
+      let valid = true;
+
+      if (step === 2) {
+        const fn = document.getElementById('first-name').value.trim();
+        const ln = document.getElementById('last-name').value.trim();
+        const em = document.getElementById('email').value.trim();
+        const ph = document.getElementById('phone').value.trim();
+
+        if (!fn) { showFieldError('first-name'); valid = false; }
+        if (!ln) { showFieldError('last-name'); valid = false; }
+        if (!em || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) { showFieldError('email', 'Enter a valid email'); valid = false; }
+        if (!ph) { showFieldError('phone'); valid = false; }
+        if (accountType === 'organization') {
+          const on = document.getElementById('org-name').value.trim();
+          if (!on) { showFieldError('org-name'); valid = false; }
+        }
+      }
+
+      if (step === 3) {
+        const bn = document.getElementById('bank-name').value;
+        const an = document.getElementById('account-number').value.trim();
+        const anm = document.getElementById('account-name').value.trim();
+        const pw = document.getElementById('password-new').value;
+        const pc = document.getElementById('password-confirm').value;
+
+        if (!bn) { showFieldError('bank-name', 'Select your bank'); valid = false; }
+        if (!an || an.length < 10) { showFieldError('account-number', 'Enter a valid 10-digit account number'); valid = false; }
+        if (!anm) { showFieldError('account-name', 'Enter account name'); valid = false; }
+        if (!pw || pw.length < 8) { showFieldError('password-new', 'Must be at least 8 characters'); valid = false; }
+        if (pw !== pc) { showFieldError('password-confirm', 'Passwords do not match'); valid = false; }
+      }
+
+      return valid;
+    }
+
+    async function submitRegistration() {
+      const btn = document.getElementById('btn-continue');
+      btn.disabled = true;
+      btn.textContent = 'Creating account…';
+
+      const payload = {
+        accountType,
+        firstName: document.getElementById('first-name').value.trim(),
+        lastName: document.getElementById('last-name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        orgName: accountType === 'organization' ? document.getElementById('org-name').value.trim() : null,
+        bankName: document.getElementById('bank-name').value,
+        accountNumber: document.getElementById('account-number').value.trim(),
+        accountName: document.getElementById('account-name').value.trim(),
+        password: document.getElementById('password-new').value
+      };
+
+      try {
+        const res = await fetch('/api/vendor/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          const errEl = document.getElementById('step3-error');
+          errEl.textContent = data.error || 'Registration failed. Please try again.';
+          errEl.classList.add('show');
+          btn.disabled = false;
+          btn.textContent = 'Create Account';
+          return;
+        }
+
+        // Success — go to confirmation step
+        document.getElementById('confirm-email-display').textContent = payload.email;
+        currentStep = 4;
+        updateUI();
+      } catch (err) {
+        const errEl = document.getElementById('step3-error');
+        errEl.textContent = 'Network error. Is the server running?';
+        errEl.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = 'Create Account';
+      }
+    }
+
+    function goNext() {
+      if (currentStep === 3) {
+        if (!validateStep(3)) return;
+        submitRegistration();
+        return;
+      }
+
+      if (currentStep === 2) {
+        if (!validateStep(2)) return;
+      }
+
+      if (currentStep < TOTAL_STEPS) {
+        currentStep++;
+        updateUI();
+      }
+    }
+
+    function goBack() {
+      if (currentStep > 1) {
+        clearErrors();
+        currentStep--;
+        updateUI();
+      }
+    }
+
+    function resendEmail() {
+      const email = document.getElementById('email').value.trim();
+      fetch('/api/vendor/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      }).then(() => alert('Verification email resent!')).catch(() => {});
+    }
+
+    // Init
+    updateUI();
+    document.getElementById('btn-back').style.display = 'none';
+  </script>
+
+</body>
+</html>
