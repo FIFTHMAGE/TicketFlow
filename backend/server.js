@@ -35,6 +35,9 @@ const { handleNombaWebhook } = require('./webhooks/nomba');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust Vercel's proxy for rate limiting
+app.set('trust proxy', 1);
+
 // ── CORS ─────────────────────────────────────────────────────────────────────
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
