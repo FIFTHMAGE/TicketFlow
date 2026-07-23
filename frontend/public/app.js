@@ -1,10 +1,17 @@
 let activeEvent = null;
 let activeTransactionId = null;
+let activePaymentGateway = 'basqet';
 
 const API_BASE = '/api';
 
 window.addEventListener('DOMContentLoaded', () => {
   loadEvents();
+  loadPublicStats();
+  
+  // Periodically refresh public stats mockup panel (every 3 seconds)
+  setInterval(() => {
+    loadPublicStats();
+  }, 3000);
 });
 
 async function loadEvents() {
@@ -16,17 +23,17 @@ async function loadEvents() {
     container.innerHTML = '';
     events.forEach(event => {
       const card = document.createElement('div');
-      card.className = 'event-card glass';
+      card.className = 'event-card';
       card.innerHTML = `
-        <div class="event-info">
-          <h3>${event.name}</h3>
+        <div>
+          <div class="event-title">${event.name}</div>
           <div class="event-meta">
-            <p><strong>Organizer:</strong> ${event.vendor_name}</p>
+            <span>Organizer: ${event.vendor_name}</span>
           </div>
         </div>
-        <div class="event-price-action">
+        <div class="event-price-row">
           <div class="event-price">₦${event.price.toLocaleString()}</div>
-          <button class="action-btn" onclick="openCheckout('${event.id}')">Buy Ticket</button>
+          <button class="btn-primary" onclick="openCheckout('${event.id}', ${event.price})">Buy Ticket</button>
         </div>
       `;
       container.appendChild(card);
@@ -37,8 +44,89 @@ async function loadEvents() {
   }
 }
 
-function openCheckout(eventId) {
+async function loadPublicStats() {
+  try {
+    const res = await fetch(`${API_BASE}/public-stats`);
+    const data = await res.json();
+
+    // Update mockup balances
+    document.getElementById('mockup-pool-bal').innerText = `₦${data.poolBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+    document.getElementById('mockup-rev-bal').innerText = `₦${data.revenueBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
+    // Update mockup ledger journal logs
+    const list = document.getElementById('mockup-ledger-list');
+    if (data.latestEntries.length === 0) {
+      list.innerHTML = `<div class="ledger-line"><span class="ledger-status pending"></span>No ledger entries.</div>`;
+    } else {
+      list.innerHTML = '';
+      data.latestEntries.forEach(entry => {
+        const line = document.createElement('div');
+        line.className = 'ledger-line';
+        const isDebit = entry.type === 'DEBIT';
+        const dotClass = isDebit ? 'ledger-status' : 'ledger-status pending';
+        
+        line.innerHTML = `
+          <span class="${dotClass}"></span>
+          <span>${entry.account_id} — ${entry.type.toLowerCase()} — ₦${entry.amount.toLocaleString()}</span>
+        `;
+        list.appendChild(line);
+      });
+    }
+
+    // Render interactive ticker with real ledger values if available
+    renderTicker(data.latestEntries);
+  } catch (err) {
+    console.error('Error loading stats:', err);
+  }
+}
+
+function renderTicker(entries) {
+  const track = document.getElementById('tickerTrack');
+  if (!track) return;
+
+  // Fallback default items if database is clean
+  let items = [
+    { id: '4821', amt: '₦25,000', to: '₦22,500' },
+    { id: '4822', amt: '₦18,500', to: '₦16,650' },
+    { id: '4823', amt: '₦40,000', to: '₦36,000' },
+    { id: '4824', amt: '₦25,000', to: '₦22,500' },
+  ];
+
+  // If we have actual ledger entries, map them into the scrolling ticker
+  if (entries && entries.length > 0) {
+    const purchaseEntries = entries.filter(e => e.account_id === 'SETTLEMENT_POOL' && e.type === 'DEBIT');
+    if (purchaseEntries.length > 0) {
+      items = purchaseEntries.map((e, idx) => {
+        const refShort = e.reference.substring(7, 11) || `TX${idx}`;
+        return {
+          id: refShort,
+          amt: `₦${e.amount.toLocaleString()}`,
+          to: `₦${(e.amount * 0.9).toLocaleString()}` // approx split
+        };
+      });
+    }
+  }
+
+  const build = () => items.map(i => `
+    <span class="ticker-item">
+      <span>TICKET #${i.id}</span>
+      <span class="amount">${i.amt}</span>
+      <span class="arrow">→</span>
+      <span>SETTLED</span>
+      <span class="arrow">→</span>
+      <span class="amount">${i.to}</span>
+      <span>SENT</span>
+    </span>
+  `).join('');
+  track.innerHTML = build() + build();
+}
+
+function openCheckout(eventId, price) {
   activeEvent = eventId;
+  
+  // Set interactive ticket price
+  document.getElementById('ticket-interactive-price').innerText = `₦${price.toLocaleString()}`;
+
   document.getElementById('checkout-modal').classList.add('active');
   document.getElementById('checkout-step-init').classList.remove('hidden');
   document.getElementById('checkout-step-pay').classList.add('hidden');
@@ -92,8 +180,6 @@ async function initiatePayment(currencyId) {
   }
 }
 
-let activePaymentGateway = 'basqet';
-
 async function initiateNombaPayment() {
   const customerName = "Demo Customer";
   const customerEmail = "customer@example.com";
@@ -126,9 +212,9 @@ async function initiateNombaPayment() {
       
       const qrBox = document.getElementById('qr-code-box');
       qrBox.innerHTML = `
-        <div style="font-size: 13px; text-align: center; color: #fff; padding: 20px;">
-          <strong>Nomba Checkout</strong><br/>
-          Bank: Nomba microfinance Bank<br/>
+        <div style="font-size: 13px; text-align: center; color: #fff; padding: 20px; font-family: monospace;">
+          <strong>Nomba Checkout</strong><br/><br/>
+          Bank: Nomba Bank<br/>
           Account: ${details.bank_account}
         </div>
       `;
@@ -160,6 +246,7 @@ async function confirmPaymentSimulation() {
     if (data.status === 'success') {
       alert(`Simulated ${activePaymentGateway === 'nomba' ? 'Nomba' : 'Basqet'} Payment Complete. Ledger updated.`);
       closeCheckout();
+      loadPublicStats(); // refresh visual dashboard instantly
     }
   } catch (err) {
     console.error('Error completing simulated payment:', err);

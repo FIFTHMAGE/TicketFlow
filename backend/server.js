@@ -66,6 +66,23 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
+// API: Get public ledger summary metrics for homepage mockup
+app.get('/api/public-stats', async (req, res) => {
+  try {
+    const pool = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'SETTLEMENT_POOL'");
+    const revenue = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'PLATFORM_REVENUE'");
+    const entries = await db.all("SELECT * FROM ledger_entries ORDER BY created_at DESC LIMIT 5");
+
+    res.json({
+      poolBalance: pool ? pool.balance : 0,
+      revenueBalance: revenue ? revenue.balance : 0,
+      latestEntries: entries
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // API: Initialize purchase (Customer storefront)
 app.post('/api/purchase', async (req, res) => {
   const { eventId, customerName, customerEmail } = req.body;

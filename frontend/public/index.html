@@ -1,105 +1,1127 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StableFlow Events Storefront</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StableFlow Tickets - Settle before intermission</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B0D0A;
+    --charcoal:#171912;
+    --charcoal-2:#1F221A;
+    --cream:#F3EFE3;
+    --cream-2:#E9E3D2;
+    --green:#92CB3C;
+    --green-dim:#6E9A2C;
+    --sand:#C9C2AC;
+    --off-white:#EDEDE6;
+    --line: rgba(237,237,230,0.12);
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--off-white);
+    font-family:'Inter', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  h1,h2,h3{
+    font-family:'Space Grotesk', sans-serif;
+    margin:0;
+    letter-spacing:-0.02em;
+  }
+  .mono{
+    font-family:'Courier Prime', monospace;
+  }
+  a{color:inherit;text-decoration:none;}
+  img{max-width:100%;display:block;}
+  ::selection{background:var(--green);color:var(--ink);}
+
+  :focus-visible{
+    outline:2px solid var(--green);
+    outline-offset:3px;
+  }
+
+  .wrap{
+    max-width:1120px;
+    margin:0 auto;
+    padding:0 32px;
+  }
+
+  /* ---------- NAV ---------- */
+  nav{
+    position:sticky;
+    top:0;
+    z-index:50;
+    background:rgba(11,13,10,0.85);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav-inner{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:20px 32px;
+    max-width:1120px;
+    margin:0 auto;
+  }
+  .logo{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:1.15rem;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    letter-spacing:-0.01em;
+  }
+  .logo-mark{
+    width:22px;
+    height:13px;
+    flex-shrink:0;
+  }
+  .nav-links{
+    display:flex;
+    gap:32px;
+    font-size:0.9rem;
+    color:var(--sand);
+  }
+  .nav-links a:hover{color:var(--off-white);}
+  .nav-cta{
+    background:var(--green);
+    color:var(--ink);
+    padding:10px 20px;
+    border-radius:6px;
+    font-weight:600;
+    font-size:0.88rem;
+  }
+  @media (max-width:760px){ .nav-links{display:none;} }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    padding:96px 32px 60px;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero-scene{
+    position:absolute;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    opacity:0.55;
+  }
+  .hero-grid{
+    position:relative;
+    z-index:1;
+    max-width:1120px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:1.05fr 0.95fr;
+    gap:64px;
+    align-items:center;
+  }
+  @media (max-width:900px){
+    .hero-grid{grid-template-columns:1fr; gap:56px;}
+  }
+  .eyebrow{
+    font-family:'Courier Prime', monospace;
+    font-size:0.78rem;
+    color:var(--green);
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    margin-bottom:20px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .eyebrow::before{
+    content:'';
+    width:6px;height:6px;
+    background:var(--green);
+    border-radius:50%;
+    display:inline-block;
+    animation:pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1;}
+    50%{opacity:0.35;}
+  }
+  .hero h1{
+    font-size:clamp(2.4rem, 5vw, 3.7rem);
+    line-height:1.04;
+    font-weight:600;
+    color:var(--off-white);
+  }
+  .hero h1 em{
+    font-style:normal;
+    color:var(--green);
+  }
+  .hero p.lede{
+    margin-top:24px;
+    font-size:1.08rem;
+    line-height:1.6;
+    color:var(--sand);
+    max-width:46ch;
+  }
+  .hero-actions{
+    margin-top:36px;
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+  }
+  .btn-primary{
+    background:var(--green);
+    color:var(--ink);
+    padding:14px 26px;
+    border-radius:6px;
+    font-weight:600;
+    font-size:0.95rem;
+    display:inline-block;
+    transition:transform 0.15s ease, background 0.15s ease;
+    border:none;
+    cursor:pointer;
+  }
+  .btn-primary:hover{background:#a3dc4c; transform:translateY(-1px);}
+  .btn-ghost{
+    border:1px solid var(--line);
+    color:var(--off-white);
+    padding:14px 26px;
+    border-radius:6px;
+    font-weight:500;
+    font-size:0.95rem;
+    display:inline-block;
+    transition:border-color 0.15s ease, background 0.15s ease;
+  }
+  .btn-ghost:hover{border-color:var(--sand); background:rgba(255,255,255,0.03);}
+
+  /* ---------- TICKET STUB ---------- */
+  .ticket-stage{
+    display:flex;
+    justify-content:center;
+    perspective:1400px;
+  }
+  .ticket{
+    width:100%;
+    max-width:380px;
+    background:var(--cream);
+    color:var(--ink);
+    border-radius:14px;
+    position:relative;
+    transform:rotate(3deg);
+    box-shadow:0 40px 80px -30px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,0,0,0.05);
+    font-family:'Courier Prime', monospace;
+    animation:settle 900ms cubic-bezier(0.16,1,0.3,1) both;
+  }
+  @keyframes settle{
+    from{ transform:rotate(3deg) translateY(24px); opacity:0; }
+    to{ transform:rotate(3deg) translateY(0); opacity:1; }
+  }
+  .ticket-top{
+    padding:26px 26px 20px;
+  }
+  .ticket-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:6px;
+  }
+  .ticket-label{
+    font-size:0.62rem;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:#7A7462;
+  }
+  .ticket-event{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:1.3rem;
+    margin:10px 0 2px;
+    color:var(--ink);
+  }
+  .ticket-meta{
+    font-size:0.78rem;
+    color:#5c5847;
+  }
+  .tear{
+    position:relative;
+    height:1px;
+    border-top:2px dashed #c7bfa4;
+    margin:4px 0;
+  }
+  .tear::before, .tear::after{
+    content:'';
+    position:absolute;
+    top:-9px;
+    width:18px;height:18px;
+    background:var(--ink);
+    border-radius:50%;
+  }
+  .tear::before{left:-35px;}
+  .tear::after{right:-35px;}
+  .ticket-bottom{
+    padding:18px 26px 26px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .ticket-price{
+    font-size:1.05rem;
+    font-weight:700;
+  }
+  .ticket-code{
+    font-size:0.72rem;
+    color:#7A7462;
+  }
+  .stamp{
+    position:absolute;
+    top:18px;
+    right:22px;
+    border:2px solid;
+    border-radius:4px;
+    padding:4px 10px;
+    font-size:0.66rem;
+    letter-spacing:0.06em;
+    font-weight:700;
+    text-transform:uppercase;
+    opacity:0;
+    animation:stampIn 0.4s ease forwards;
+  }
+  .stamp-1{ color:#B5893A; border-color:#B5893A; animation-delay:1.1s; }
+  .stamp-2{ color:#4C7A9E; border-color:#4C7A9E; animation-delay:2.3s; }
+  .stamp-3{ color:var(--green-dim); border-color:var(--green-dim); animation-delay:3.5s; }
+  @keyframes stampIn{
+    0%{ opacity:0; transform:scale(1.4) rotate(-8deg); }
+    60%{ opacity:1; transform:scale(0.95) rotate(-8deg); }
+    100%{ opacity:1; transform:scale(1) rotate(-8deg); }
+  }
+
+  /* ---------- TICKER ---------- */
+  .ticker-section{
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    background:var(--charcoal);
+    padding:14px 0;
+    overflow:hidden;
+  }
+  .ticker-track{
+    display:flex;
+    gap:48px;
+    white-space:nowrap;
+    animation:scroll 28s linear infinite;
+    width:max-content;
+  }
+  @keyframes scroll{
+    from{ transform:translateX(0); }
+    to{ transform:translateX(-50%); }
+  }
+  .ticker-item{
+    font-family:'Courier Prime', monospace;
+    font-size:0.82rem;
+    color:var(--sand);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .ticker-item .arrow{color:var(--green);}
+  .ticker-item .amount{color:var(--off-white);}
+
+  /* ---------- STOREFRONT EVENTS GRID ---------- */
+  .storefront-section {
+    padding: 80px 32px;
+  }
+  .storefront-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 30px;
+    margin-top: 40px;
+  }
+  .event-card {
+    background: var(--charcoal);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .event-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--green);
+  }
+  .event-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .event-meta {
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.8rem;
+    color: var(--sand);
+    margin-bottom: 24px;
+  }
+  .event-price-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--line);
+    padding-top: 20px;
+  }
+  .event-price {
+    font-family: 'Courier Prime', monospace;
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+
+  /* ---------- PRODUCT MOCKUP VISUAL ---------- */
+  .visual-section{
+    padding:20px 32px 100px;
+  }
+  .mockup{
+    background:var(--charcoal);
+    border:1px solid var(--line);
+    border-radius:16px;
+    overflow:hidden;
+  }
+  .mockup-bar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:14px 18px;
+    border-bottom:1px solid var(--line);
+  }
+  .mockup-bar .dot{
+    width:9px;height:9px;
+    border-radius:50%;
+    background:#3a3d31;
+  }
+  .mockup-bar .url{
+    margin-left:14px;
+    font-family:'Courier Prime', monospace;
+    font-size:0.72rem;
+    color:var(--sand);
+  }
+  .mockup-body{
+    display:grid;
+    grid-template-columns:1.1fr 0.9fr;
+  }
+  @media (max-width:760px){ .mockup-body{grid-template-columns:1fr;} }
+  .mockup-panel{
+    padding:32px;
+  }
+  .mockup-panel + .mockup-panel{
+    border-left:1px solid var(--line);
+  }
+  @media (max-width:760px){
+    .mockup-panel + .mockup-panel{ border-left:none; border-top:1px solid var(--line); }
+  }
+  .panel-label{
+    font-family:'Courier Prime', monospace;
+    font-size:0.7rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--green);
+    margin-bottom:20px;
+    display:block;
+  }
+  .bal-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:14px 0;
+    border-top:1px solid var(--line);
+  }
+  .bal-row:first-of-type{border-top:none;}
+  .bal-name{font-size:0.9rem;color:var(--off-white);}
+  .bal-value{font-family:'Courier Prime', monospace; font-size:0.95rem;}
+  .bal-value.green{color:var(--green);}
+  
+  .ledger-journal-wrapper {
+    max-height: 250px;
+    overflow-y: auto;
+  }
+  .ledger-line{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:11px 0;
+    border-top:1px solid var(--line);
+    font-family:'Courier Prime', monospace;
+    font-size:0.76rem;
+    color:var(--sand);
+  }
+  .ledger-line:first-of-type{border-top:none;}
+  .ledger-status{
+    width:7px;height:7px;
+    border-radius:50%;
+    background:var(--green);
+    flex-shrink:0;
+  }
+  .ledger-status.pending{background:#B5893A;}
+
+  /* ---------- MODAL CHECKOUT ---------- */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(11, 13, 10, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .checkout-card {
+    background-color: var(--charcoal);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    width: 450px;
+    max-width: 90%;
+    padding: 32px;
+    box-shadow: 0 40px 80px -20px rgba(0,0,0,0.8);
+    transform: scale(0.95);
+    transition: transform 0.3s;
+  }
+  .modal-overlay.active .checkout-card {
+    transform: scale(1);
+  }
+  .checkout-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 12px;
+  }
+  .checkout-header h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  .close-btn {
+    background: transparent;
+    border: none;
+    color: var(--sand);
+    font-size: 24px;
+    cursor: pointer;
+  }
+  .close-btn:hover {
+    color: #fff;
+  }
+  .crypto-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .crypto-btn {
+    background-color: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #fff;
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.9rem;
+    width: 100%;
+    text-align: left;
+  }
+  .crypto-btn img {
+    width: 24px;
+    height: 24px;
+  }
+  .crypto-btn:hover {
+    background-color: rgba(146, 203, 60, 0.08);
+    border-color: var(--green);
+  }
+  .payment-summary {
+    background-color: rgba(255,255,255,0.01);
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    margin-bottom: 20px;
+  }
+  .price-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: var(--sand);
+    margin-bottom: 8px;
+  }
+  .price-row-crypto {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.15rem;
+    font-family: 'Courier Prime', monospace;
+    font-weight: 700;
+  }
+  .qr-address-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .mock-qr {
+    width: 130px;
+    height: 130px;
+    background-color: #fff;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    font-weight: 800;
+    font-size: 16px;
+    border: 6px solid #fff;
+  }
+  .address-copy-box {
+    width: 100%;
+  }
+  .address-copy-box label {
+    font-size: 0.72rem;
+    color: var(--sand);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 6px;
+  }
+  .copy-input input {
+    width: 100%;
+    background-color: rgba(0,0,0,0.3);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px;
+    color: var(--off-white);
+    font-family: 'Courier Prime', monospace;
+    font-size: 0.75rem;
+    text-align: center;
+  }
+  .timeout-warning {
+    font-size: 0.7rem;
+    color: var(--sand);
+    text-align: center;
+    margin-top: 10px;
+  }
+  .hidden {
+    display: none !important;
+  }
+
+  /* ---------- STEPS & OTHER SECTIONS ---------- */
+  section{
+    padding:100px 32px;
+  }
+  .section-inner{
+    max-width:1120px;
+    margin:0 auto;
+  }
+  .section-head{
+    max-width:640px;
+    margin-bottom:56px;
+  }
+  .section-eyebrow{
+    font-family:'Courier Prime', monospace;
+    font-size:0.75rem;
+    color:var(--green);
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    margin-bottom:14px;
+    display:block;
+  }
+  .section-head h2{
+    font-size:clamp(1.7rem, 3vw, 2.3rem);
+    font-weight:600;
+    line-height:1.15;
+  }
+  .section-head p{
+    margin-top:16px;
+    color:var(--sand);
+    font-size:1.02rem;
+    line-height:1.6;
+  }
+
+  .steps{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:12px;
+    overflow:hidden;
+  }
+  @media (max-width:800px){ .steps{grid-template-columns:1fr;} }
+  .step{
+    background:var(--ink);
+    padding:36px 32px;
+  }
+  .step-num{
+    font-family:'Courier Prime', monospace;
+    font-size:0.85rem;
+    color:var(--green);
+    margin-bottom:18px;
+  }
+  .step h3{
+    font-size:1.15rem;
+    font-weight:600;
+    margin-bottom:10px;
+  }
+  .step p{
+    color:var(--sand);
+    font-size:0.92rem;
+    line-height:1.55;
+  }
+
+  .split{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+  }
+  @media (max-width:800px){ .split{grid-template-columns:1fr;} }
+  .card{
+    background:var(--charcoal);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:40px;
+  }
+  .card-tag{
+    font-family:'Courier Prime', monospace;
+    font-size:0.72rem;
+    color:var(--green);
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    margin-bottom:16px;
+    display:block;
+  }
+  .card h3{
+    font-size:1.4rem;
+    font-weight:600;
+    margin-bottom:16px;
+  }
+  .card ul{
+    list-style:none;
+    padding:0;
+    margin:0;
+  }
+  .card li{
+    padding:12px 0;
+    border-top:1px solid var(--line);
+    color:var(--off-white);
+    font-size:0.94rem;
+    display:flex;
+    gap:12px;
+  }
+  .card li:first-of-type{border-top:none;}
+  .card li .dot{
+    color:var(--green);
+    font-family:'Courier Prime', monospace;
+    flex-shrink:0;
+  }
+
+  .stat-strip{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:32px;
+    padding:56px 0;
+    border-top:1px solid var(--line);
+  }
+  @media (max-width:700px){ .stat-strip{grid-template-columns:1fr; gap:36px;} }
+  .stat .num{
+    font-family:'Courier Prime', monospace;
+    font-size:2.1rem;
+    font-weight:700;
+    color:var(--green);
+  }
+  .stat .label{
+    margin-top:6px;
+    color:var(--sand);
+    font-size:0.88rem;
+  }
+
+  .cta{
+    background:var(--cream);
+    color:var(--ink);
+    border-radius:20px;
+    padding:64px 48px;
+    text-align:center;
+    margin:0 32px 100px;
+  }
+  .cta h2{
+    font-size:clamp(1.8rem, 3.5vw, 2.5rem);
+    font-weight:600;
+    max-width:20ch;
+    margin:0 auto;
+  }
+  .cta p{
+    margin-top:16px;
+    color:#5c5847;
+    font-size:1rem;
+  }
+  .cta .hero-actions{ justify-content:center; margin-top:32px; }
+  .cta .btn-primary{ background:var(--ink); color:var(--cream); }
+  .cta .btn-primary:hover{ background:#26291f; }
+  .cta .btn-ghost{ border-color:#c7bfa4; color:var(--ink); }
+  .cta .btn-ghost:hover{ background:rgba(0,0,0,0.04); }
+
+  footer{
+    border-top:1px solid var(--line);
+    padding:40px 32px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    color:var(--sand);
+    font-size:0.85rem;
+    max-width:1120px;
+    margin:0 auto;
+    flex-wrap:wrap;
+    gap:16px;
+  }
+</style>
 </head>
 <body>
 
-  <header class="app-header">
-    <div class="header-logo">
-      <div class="logo-orb"></div>
-      <h1>StableFlow <span>Events Gateway</span></h1>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <g id="stub-icon">
+      <path d="
+        M 10,0 L 20,0
+        a14,14 0 0 1 28,0 a14,14 0 0 1 28,0 a14,14 0 0 1 28,0
+        a14,14 0 0 1 28,0 a14,14 0 0 1 28,0 a14,14 0 0 1 28,0
+        a14,14 0 0 1 28,0
+        L 226,0
+        A 10,10 0 0 1 236,10
+        L 236,130
+        A 10,10 0 0 1 226,140
+        L 216,140
+        a14,14 0 0 1 -28,0 a14,14 0 0 1 -28,0 a14,14 0 0 1 -28,0
+        a14,14 0 0 1 -28,0 a14,14 0 0 1 -28,0 a14,14 0 0 1 -28,0
+        a14,14 0 0 1 -28,0
+        L 10,140
+        A 10,10 0 0 1 0,130
+        L 0,10
+        A 10,10 0 0 1 10,0
+        Z" fill="#92CB3C"/>
+      <circle cx="52" cy="70" r="7" fill="#0B0D0A"/>
+      <line x1="52" y1="20" x2="52" y2="48" stroke="#0B0D0A" stroke-width="3" stroke-dasharray="4 5" stroke-linecap="round"/>
+      <line x1="52" y1="92" x2="52" y2="120" stroke="#0B0D0A" stroke-width="3" stroke-dasharray="4 5" stroke-linecap="round"/>
+    </g>
+  </defs>
+</svg>
+
+<nav>
+  <div class="nav-inner">
+    <div class="logo">
+      <svg class="logo-mark" viewBox="-6 -8 250 156" transform="rotate(-6)"><use href="#stub-icon"/></svg>
+      stub
     </div>
+    <div class="nav-links">
+      <a href="#events-section">Buy Tickets</a>
+      <a href="#how">How it works</a>
+      <a href="/admin/index.html" class="mono" style="color: var(--green);">[Admin Console]</a>
+    </div>
+    <a href="#events-section" class="nav-cta">Browse Passes</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <svg class="hero-scene" viewBox="0 0 1120 560" preserveAspectRatio="xMidYMax slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <linearGradient id="beam1" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#92CB3C" stop-opacity="0.28"/>
+        <stop offset="100%" stop-color="#92CB3C" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="beam2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#F3EFE3" stop-opacity="0.14"/>
+        <stop offset="100%" stop-color="#F3EFE3" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#0B0D0A" stop-opacity="0"/>
+        <stop offset="100%" stop-color="#0B0D0A" stop-opacity="1"/>
+      </linearGradient>
+    </defs>
+
+    <polygon points="180,0 260,0 420,560 100,560" fill="url(#beam1)"/>
+    <polygon points="420,0 480,0 560,560 320,560" fill="url(#beam2)"/>
+    <polygon points="680,0 760,0 940,560 620,560" fill="url(#beam1)"/>
+    <polygon points="860,0 920,0 1040,560 760,560" fill="url(#beam2)"/>
+
+    <g fill="#0B0D0A">
+      <ellipse cx="60" cy="500" rx="34" ry="46"/>
+      <ellipse cx="120" cy="512" rx="30" ry="40"/>
+      <ellipse cx="175" cy="498" rx="36" ry="48"/>
+      <ellipse cx="235" cy="515" rx="28" ry="38"/>
+      <ellipse cx="290" cy="502" rx="34" ry="46"/>
+      <ellipse cx="350" cy="518" rx="30" ry="40"/>
+      <ellipse cx="405" cy="500" rx="36" ry="48"/>
+      <ellipse cx="465" cy="514" rx="28" ry="38"/>
+      <ellipse cx="520" cy="504" rx="34" ry="46"/>
+      <ellipse cx="580" cy="516" rx="30" ry="40"/>
+      <ellipse cx="635" cy="500" rx="36" ry="48"/>
+      <ellipse cx="695" cy="513" rx="28" ry="38"/>
+      <ellipse cx="750" cy="503" rx="34" ry="46"/>
+      <ellipse cx="810" cy="517" rx="30" ry="40"/>
+      <ellipse cx="865" cy="500" rx="36" ry="48"/>
+      <ellipse cx="925" cy="514" rx="28" ry="38"/>
+      <ellipse cx="980" cy="504" rx="34" ry="46"/>
+      <ellipse cx="1040" cy="516" rx="30" ry="40"/>
+      <rect x="55" y="440" width="8" height="50" rx="4"/>
+      <rect x="288" y="438" width="8" height="52" rx="4"/>
+      <rect x="518" y="442" width="8" height="48" rx="4"/>
+      <rect x="748" y="440" width="8" height="50" rx="4"/>
+      <rect x="978" y="438" width="8" height="52" rx="4"/>
+    </g>
+
+    <rect x="0" y="420" width="1120" height="140" fill="url(#fade)"/>
+  </svg>
+
+  <div class="hero-grid">
     <div>
-      <a href="/admin/index.html" class="action-btn borderless">Admin Console</a>
-    </div>
-  </header>
-
-  <main class="storefront-container">
-    <div class="storefront-header text-center">
-      <h2>Explore Premier Events</h2>
-      <p class="text-secondary">Accepting payment in USDT, BTC, and ETH via Basqet crypto infrastructure</p>
-    </div>
-
-    <div class="events-grid-full" id="events-grid">
-      <div class="loading-spinner">Loading events storefront...</div>
+      <span class="eyebrow">Settles in seconds, not weeks</span>
+      <h1>Tickets that pay out <em>before intermission.</em></h1>
+      <p class="lede">Fans pay in stablecoin or bank transfer. The organizer's cut lands in their bank account before the doors even open — no holding period, no chasing anyone for money.</p>
+      <div class="hero-actions">
+        <a href="#events-section" class="btn-primary">Buy Ticket Passes</a>
+        <a href="#how" class="btn-ghost">How settlement works</a>
+      </div>
     </div>
 
-    <!-- Checkout Modal -->
-    <div class="modal-overlay" id="checkout-modal">
-      <div class="checkout-card glass">
-        <div class="checkout-header">
-          <h3 id="checkout-title">Select Payment Method</h3>
-          <button class="close-btn" onclick="closeCheckout()">&times;</button>
-        </div>
-        
-        <div class="checkout-body">
-          <div id="checkout-step-init">
-            <p class="checkout-info">Choose your preferred payment method:</p>
-            <div class="crypto-options">
-              <!-- Nomba Integration -->
-              <button class="crypto-btn" onclick="initiateNombaPayment()" style="background-color: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3);">
-                <span style="font-size: 20px; margin-right: 5px;">💳</span>
-                <span>Nomba (Card / Bank Transfer)</span>
-              </button>
-              
-              <div style="text-align: center; margin: 10px 0; color: var(--text-secondary); font-size: 11px;">— OR PAY WITH CRYPTO —</div>
-
-              <button class="crypto-btn" onclick="initiatePayment(3)">
-                <img src="https://cryptologos.cc/logos/tether-usdt-logo.svg?v=032" alt="USDT">
-                <span>USDT (Tether) via Basqet</span>
-              </button>
-              <button class="crypto-btn" onclick="initiatePayment(4)">
-                <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.svg?v=032" alt="BTC">
-                <span>BTC (Bitcoin) via Basqet</span>
-              </button>
-              <button class="crypto-btn" onclick="initiatePayment(6)">
-                <img src="https://cryptologos.cc/logos/ethereum-eth-logo.svg?v=032" alt="ETH">
-                <span>ETH (Ethereum) via Basqet</span>
-              </button>
-            </div>
+    <div class="ticket-stage">
+      <div class="ticket">
+        <div class="stamp stamp-1" style="top:18px;">PAID</div>
+        <div class="stamp stamp-2" style="top:52px;">SETTLED</div>
+        <div class="stamp stamp-3" style="top:86px;">PAYOUT SENT</div>
+        <div class="ticket-top">
+          <div class="ticket-row">
+            <span class="ticket-label">Admit One</span>
+            <span class="ticket-label">№ 04821</span>
           </div>
+          <div class="ticket-event">Lagos Tech Fest Live</div>
+          <div class="ticket-meta">Landmark Centre, Lagos — Dec 20, 8:00PM</div>
+        </div>
+        <div class="tear"></div>
+        <div class="ticket-bottom">
+          <div>
+            <div class="ticket-label">Total</div>
+            <div class="ticket-price" id="ticket-interactive-price">₦10,000</div>
+          </div>
+          <div class="ticket-code">USDC · TX 9F02A1</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
 
-          <div id="checkout-step-pay" class="hidden">
-            <div class="payment-summary">
-              <div class="price-row">
-                <span>Total Amount:</span>
-                <span class="price-fiat" id="checkout-price-fiat">₦0.00</span>
-              </div>
-              <div class="price-row-crypto">
-                <span>Pay:</span>
-                <span class="price-crypto" id="checkout-price-crypto">0.00 USDC</span>
-              </div>
-            </div>
+<div class="ticker-section" aria-hidden="true">
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
 
-            <div class="qr-address-card">
-              <div class="qr-code-placeholder" id="qr-code-box">
-                <div class="mock-qr">QR</div>
-              </div>
-              <div class="address-copy-box">
-                <label>Deposit Address</label>
-                <div class="copy-input">
-                  <input type="text" id="deposit-address" readonly>
-                </div>
-              </div>
-            </div>
+<!-- Dynamic Storefront Grid Section -->
+<section class="storefront-section" id="events-section">
+  <div class="section-inner">
+    <div class="section-head">
+      <span class="section-eyebrow">Available Passes</span>
+      <h2>Get your tickets</h2>
+      <p>Secure event access instantly. Settlement and platform splits occur the second payment confirms.</p>
+    </div>
+    <div class="storefront-grid" id="events-grid">
+      <div class="loading-spinner">Loading dynamic event passes...</div>
+    </div>
+  </div>
+</section>
 
-            <div class="checkout-footer">
-              <button class="action-btn glow" onclick="confirmPaymentSimulation()">Simulate Payment Confirm</button>
-              <p class="timeout-warning">🔒 Exchange rate locked for 10 minutes</p>
-            </div>
+<section class="visual-section">
+  <div class="section-inner">
+    <div class="mockup">
+      <div class="mockup-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">app.stub.tickets/ledger</span>
+      </div>
+      <div class="mockup-body">
+        <div class="mockup-panel">
+          <span class="panel-label">Settlement Pool — Live Monitor</span>
+          <div class="bal-row">
+            <span class="bal-name">Settlement Pool Balance</span>
+            <span class="bal-value green" id="mockup-pool-bal">₦0.00</span>
+          </div>
+          <div class="bal-row">
+            <span class="bal-name">Total Platform Revenue</span>
+            <span class="bal-value" id="mockup-rev-bal">₦0.00</span>
+          </div>
+          <div class="bal-row">
+            <span class="bal-name">Next payout batch</span>
+            <span class="bal-value" style="color: var(--green);">Pending Run</span>
+          </div>
+        </div>
+        <div class="mockup-panel">
+          <span class="panel-label">Real-Time Ledger Journal</span>
+          <div class="ledger-journal-wrapper" id="mockup-ledger-list">
+            <div class="ledger-line"><span class="ledger-status pending"></span>Waiting for checkout transactions...</div>
           </div>
         </div>
       </div>
     </div>
-  </main>
+  </div>
+</section>
 
-  <script src="app.js"></script>
+<section id="how">
+  <div class="section-inner">
+    <div class="section-head">
+      <span class="section-eyebrow">How it works</span>
+      <h2>Three steps. All of them automatic.</h2>
+      <p>Every ticket sale runs through the same settlement path — a real ledger entry, not a promise to pay you later.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num mono">01</div>
+        <h3>Fan pays via Crypto or Nomba</h3>
+        <p>Checkout accepts cards, bank transfers, or USDT/BTC/ETH. Payment clears instantly with zero OTP bottlenecks.</p>
+      </div>
+      <div class="step">
+        <div class="step-num mono">02</div>
+        <h3>Ledger settles the split</h3>
+        <p>Your cut and the platform fee are calculated and recorded the moment payment confirms — split percentages are fully dynamic.</p>
+      </div>
+      <div class="step">
+        <div class="step-num mono">03</div>
+        <h3>Payout hits your bank</h3>
+        <p>Naira lands in your account same day. No 30-day hold, no minimum payout threshold, no support ticket to chase it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="organizers" style="padding-top:0;">
+  <div class="section-inner">
+    <div class="split">
+      <div class="card">
+        <span class="card-tag">For organizers</span>
+        <h3>Run the show, not the reconciliation</h3>
+        <ul>
+          <li><span class="dot mono">→</span>Same-day payout, every event — no monthly settlement cycle</li>
+          <li><span class="dot mono">→</span>Live dashboard: tickets sold, funds settled, payouts sent</li>
+          <li><span class="dot mono">→</span>Set your split once, it applies to every ticket automatically</li>
+          <li><span class="dot mono">→</span>No StableFlow account needed for your team to get paid</li>
+        </ul>
+      </div>
+      <div id="fans" class="card">
+        <span class="card-tag">For fans</span>
+        <h3>Pay however you already hold value</h3>
+        <ul>
+          <li><span class="dot mono">→</span>Checkout in stablecoin — no card, no bank app, no failed OTPs</li>
+          <li><span class="dot mono">→</span>Ticket confirms the moment payment clears on-chain</li>
+          <li><span class="dot mono">→</span>QR ticket delivered straight to your inbox, ready to scan at the door</li>
+          <li><span class="dot mono">→</span>Full price shown upfront — no surprise fees at checkout</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat">
+        <div class="num mono">&lt;60s</div>
+        <div class="label">From payment confirmation to ledger settlement</div>
+      </div>
+      <div class="stat">
+        <div class="num mono">0</div>
+        <div class="label">Days held before payout is triggered</div>
+      </div>
+      <div class="stat">
+        <div class="num mono">100%</div>
+        <div class="label">Of your split, sent automatically — no invoicing</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Checkout Modal Overlay -->
+<div class="modal-overlay" id="checkout-modal">
+  <div class="checkout-card glass">
+    <div class="checkout-header">
+      <h3 id="checkout-title">Select Payment Method</h3>
+      <button class="close-btn" onclick="closeCheckout()">&times;</button>
+    </div>
+    
+    <div class="checkout-body">
+      <div id="checkout-step-init">
+        <p class="checkout-info">Choose your preferred payment method:</p>
+        <div class="crypto-options">
+          <button class="crypto-btn" onclick="initiateNombaPayment()" style="background-color: rgba(146, 203, 60, 0.08); border-color: var(--green);">
+            <span style="font-size: 20px; margin-right: 5px;">💳</span>
+            <span>Nomba (Card / Bank Transfer)</span>
+          </button>
+          
+          <div style="text-align: center; margin: 10px 0; color: var(--sand); font-size: 11px;">— OR PAY WITH CRYPTO —</div>
+
+          <button class="crypto-btn" onclick="initiatePayment(3)">
+            <img src="https://cryptologos.cc/logos/tether-usdt-logo.svg?v=032" alt="USDT">
+            <span>USDT (Tether) via Basqet</span>
+          </button>
+          <button class="crypto-btn" onclick="initiatePayment(4)">
+            <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.svg?v=032" alt="BTC">
+            <span>BTC (Bitcoin) via Basqet</span>
+          </button>
+          <button class="crypto-btn" onclick="initiatePayment(6)">
+            <img src="https://cryptologos.cc/logos/ethereum-eth-logo.svg?v=032" alt="ETH">
+            <span>ETH (Ethereum) via Basqet</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="checkout-step-pay" class="hidden">
+        <div class="payment-summary">
+          <div class="price-row">
+            <span>Total Amount:</span>
+            <span class="price-fiat" id="checkout-price-fiat" style="color: var(--green); font-weight: bold;">₦0.00</span>
+          </div>
+          <div class="price-row-crypto">
+            <span>Pay:</span>
+            <span class="price-crypto" id="checkout-price-crypto">0.00 USDC</span>
+          </div>
+        </div>
+
+        <div class="qr-address-card">
+          <div class="qr-code-placeholder" id="qr-code-box">
+            <div class="mock-qr">QR</div>
+          </div>
+          <div class="address-copy-box">
+            <label>Payment Destination</label>
+            <div class="copy-input">
+              <input type="text" id="deposit-address" readonly>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button class="btn-primary" style="flex: 1; padding: 12px;" onclick="confirmPaymentSimulation()">Confirm Simulated Payment</button>
+          <button class="btn-ghost" style="flex: 1; padding: 12px; text-align: center;" onclick="closeCheckout()">Cancel</button>
+        </div>
+        <p class="timeout-warning">🔒 Secure Checkout session managed via StableFlow API</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="logo">
+    <svg class="logo-mark" viewBox="-6 -8 250 156" transform="rotate(-6)"><use href="#stub-icon"/></svg>
+    stub
+  </div>
+  <div>Built on StableFlow's settlement infrastructure</div>
+</footer>
+
+<script src="app.js"></script>
 </body>
 </html>
