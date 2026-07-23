@@ -1083,12 +1083,23 @@
             <span>Nomba (Card / Bank Transfer)</span>
           </button>
           
-          <div style="text-align: center; margin: 5px 0; color: var(--sand); font-size: 11px;">— OR PAY WITH CRYPTO —</div>
+          <div style="text-align: center; margin: 2px 0; color: var(--sand); font-size: 11px;">— OR PAY WITH CRYPTO —</div>
 
-          <!-- Dynamically populated from Basqet /v1/currency API -->
-          <div id="basqet-currency-options" style="display: flex; flex-direction: column; gap: 10px;">
-            <div style="text-align: center; color: var(--sand); font-size: 0.8rem; padding: 8px;">Loading crypto options...</div>
-          </div>
+          <!-- Basqet crypto: single button + dropdown -->
+          <button id="basqet-crypto-btn" class="crypto-btn" onclick="toggleBasqetDropdown()">
+            <span style="font-size: 20px; margin-right: 5px;">💠</span>
+            <span id="basqet-selected-label">Select Crypto via Basqet</span>
+            <span style="margin-left: auto; font-size: 12px; opacity: 0.6;">▾</span>
+          </button>
+
+          <select id="basqet-currency-select"
+            onchange="onBasqetCurrencyChange(this)"
+            style="display: none; width: 100%; padding: 12px 14px; background: #1a1d2e;
+                   border: 1px solid var(--line); border-radius: 10px; color: var(--off-white);
+                   font-family: 'Space Grotesk', sans-serif; font-size: 0.88rem;
+                   cursor: pointer; outline: none; appearance: none; -webkit-appearance: none;">
+            <option value="" disabled selected>Select a token...</option>
+          </select>
         </div>
 
         <!-- Proceed Action Button -->

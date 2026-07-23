@@ -16,10 +16,9 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadBasqetCurrencies() {
-  const container = document.getElementById('basqet-currency-options');
-  if (!container) return;
+  const select = document.getElementById('basqet-currency-select');
+  if (!select) return;
 
-  // Emoji map keyed by slug/ticker
   const emojiMap = {
     USDT: '🟢', BTC: '🪙', ETH: '🔷', LTC: '🔵',
     QDX: '🟡', BNB: '🟠', SOL: '🟣', USDC: '🔵',
@@ -29,41 +28,62 @@ async function loadBasqetCurrencies() {
   try {
     const res = await fetch(`${API_BASE}/basqet/currencies`);
     const data = await res.json();
-    const currencies = data.currencies || [];
+    const currencies = (data.currencies || []).filter(c => c.type === 'CRYPTO');
 
-    if (!currencies.length) {
-      container.innerHTML = `<div style="color: var(--sand); font-size: 0.8rem; text-align: center;">No crypto options available.</div>`;
-      return;
-    }
-
-    container.innerHTML = currencies
-      .filter(c => c.type === 'CRYPTO')
-      .map(c => {
-        const emoji = emojiMap[c.slug?.toUpperCase()] || '💠';
-        return `
-          <button class="crypto-btn" data-pay-method="basqet" data-currency="${c.id}"
-            onclick="selectPaymentOption(this, 'basqet', ${c.id})">
-            <span style="font-size: 20px; margin-right: 5px;">${emoji}</span>
-            <span>${c.slug} (${c.name}) via Basqet</span>
-          </button>`;
-      }).join('');
-
+    currencies.forEach(c => {
+      const emoji = emojiMap[c.slug?.toUpperCase()] || '💠';
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = `${emoji}  ${c.slug} — ${c.name}`;
+      select.appendChild(opt);
+    });
   } catch (err) {
     console.error('Failed to load Basqet currencies:', err);
-    // Fallback to known tokens
-    container.innerHTML = [
-      { id: 3, slug: 'USDT', name: 'Tether', emoji: '🟢' },
-      { id: 4, slug: 'BTC',  name: 'Bitcoin', emoji: '🪙' },
-      { id: 5, slug: 'QDX',  name: 'Quidax Token', emoji: '🟡' },
-      { id: 6, slug: 'ETH',  name: 'Ethereum', emoji: '🔷' },
-      { id: 7, slug: 'LTC',  name: 'Litecoin', emoji: '🔵' },
-    ].map(c => `
-      <button class="crypto-btn" data-pay-method="basqet" data-currency="${c.id}"
-        onclick="selectPaymentOption(this, 'basqet', ${c.id})">
-        <span style="font-size: 20px; margin-right: 5px;">${c.emoji}</span>
-        <span>${c.slug} (${c.name}) via Basqet</span>
-      </button>`).join('');
+    // Fallback options
+    [{ id: 3, slug: 'USDT', name: 'Tether', e: '🟢' },
+     { id: 4, slug: 'BTC',  name: 'Bitcoin', e: '🪙' },
+     { id: 5, slug: 'QDX',  name: 'Quidax Token', e: '🟡' },
+     { id: 6, slug: 'ETH',  name: 'Ethereum', e: '🔷' },
+     { id: 7, slug: 'LTC',  name: 'Litecoin', e: '🔵' }
+    ].forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = `${c.e}  ${c.slug} — ${c.name}`;
+      select.appendChild(opt);
+    });
   }
+}
+
+function toggleBasqetDropdown() {
+  const select = document.getElementById('basqet-currency-select');
+  const btn = document.getElementById('basqet-crypto-btn');
+  const isVisible = select.style.display !== 'none';
+
+  if (isVisible) {
+    select.style.display = 'none';
+  } else {
+    // Deselect Nomba
+    document.querySelectorAll('.crypto-btn').forEach(b => {
+      b.style.backgroundColor = '';
+      b.style.borderColor = '';
+    });
+    select.style.display = 'block';
+    btn.style.borderColor = 'var(--green)';
+    btn.style.backgroundColor = 'rgba(146, 203, 60, 0.08)';
+    select.focus();
+  }
+}
+
+function onBasqetCurrencyChange(sel) {
+  const currencyId = parseInt(sel.value);
+  const label = sel.options[sel.selectedIndex]?.text || 'Crypto via Basqet';
+
+  document.getElementById('basqet-selected-label').textContent = label;
+  selectedGateway = 'basqet';
+  selectedCurrencyId = currencyId;
+
+  // Show proceed button
+  document.getElementById('proceed-button-container').classList.remove('hidden');
 }
 
 async function loadEvents() {
@@ -551,21 +571,25 @@ async function checkPaymentStatus() {
 }
 
 function selectPaymentOption(btn, method, currencyId) {
-  // Clear other active options styling
+  // Clear all button highlights
   document.querySelectorAll('.crypto-btn').forEach(card => {
     card.style.backgroundColor = '';
     card.style.borderColor = '';
   });
 
-  // Highlight selection
+  // Highlight selected button
   btn.style.backgroundColor = 'rgba(146, 203, 60, 0.08)';
   btn.style.borderColor = 'var(--green)';
 
-  // Save state
+  // If Nomba selected, hide the crypto dropdown
+  if (method === 'nomba') {
+    const sel = document.getElementById('basqet-currency-select');
+    if (sel) sel.style.display = 'none';
+  }
+
   selectedGateway = method;
   selectedCurrencyId = currencyId;
 
-  // Reveal proceed button container
   document.getElementById('proceed-button-container').classList.remove('hidden');
 }
 
