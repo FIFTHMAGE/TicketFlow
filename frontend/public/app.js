@@ -164,8 +164,13 @@ function startReservationTimer(expiresAt) {
   countdownInterval = setInterval(update, 1000);
 }
 
+let selectedGateway = null;
+let selectedCurrencyId = null;
+
 function openCheckout(eventId, price) {
   activeEvent = eventId;
+  selectedGateway = null;
+  selectedCurrencyId = null;
   
   // Set interactive ticket price
   document.getElementById('ticket-interactive-price').innerText = `₦${price.toLocaleString()}`;
@@ -174,6 +179,13 @@ function openCheckout(eventId, price) {
   document.getElementById('checkout-modal').classList.add('active');
   document.getElementById('checkout-step-init').classList.remove('hidden');
   document.getElementById('checkout-step-pay').classList.add('hidden');
+  document.getElementById('proceed-button-container').classList.add('hidden');
+
+  // Clear all button selections
+  document.querySelectorAll('.crypto-btn').forEach(btn => {
+    btn.style.backgroundColor = '';
+    btn.style.borderColor = '';
+  });
   
   // Reset reservation state
   activeReservationId = null;
@@ -370,4 +382,34 @@ async function confirmPaymentSimulation() {
     alert('Verification failed');
   }
 }
+
+function selectPaymentOption(btn, method, currencyId) {
+  // Clear other active options styling
+  document.querySelectorAll('.crypto-btn').forEach(card => {
+    card.style.backgroundColor = '';
+    card.style.borderColor = '';
+  });
+
+  // Highlight selection
+  btn.style.backgroundColor = 'rgba(146, 203, 60, 0.08)';
+  btn.style.borderColor = 'var(--green)';
+
+  // Save state
+  selectedGateway = method;
+  selectedCurrencyId = currencyId;
+
+  // Reveal proceed button container
+  document.getElementById('proceed-button-container').classList.remove('hidden');
+}
+
+function handleProceedPayment() {
+  if (selectedGateway === 'nomba') {
+    initiateNombaPayment();
+  } else if (selectedGateway === 'basqet' && selectedCurrencyId) {
+    initiatePayment(selectedCurrencyId);
+  } else {
+    alert('Please select a payment method first.');
+  }
+}
+
 

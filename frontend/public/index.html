@@ -1077,26 +1077,31 @@
             onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--line)'">
         </div>
         <p class="checkout-info" style="margin-top: 16px;">Choose your preferred payment method:</p>
-        <div class="crypto-options">
-          <button class="crypto-btn" onclick="initiateNombaPayment()" style="background-color: rgba(146, 203, 60, 0.08); border-color: var(--green);">
+        <div class="crypto-options" style="display: flex; flex-direction: column; gap: 10px;">
+          <button class="crypto-btn" data-pay-method="nomba" onclick="selectPaymentOption(this, 'nomba', null)">
             <span style="font-size: 20px; margin-right: 5px;">💳</span>
             <span>Nomba (Card / Bank Transfer)</span>
           </button>
           
-          <div style="text-align: center; margin: 10px 0; color: var(--sand); font-size: 11px;">— OR PAY WITH CRYPTO —</div>
-
-          <button class="crypto-btn" onclick="initiatePayment(3)">
+          <div style="text-align: center; margin: 5px 0; color: var(--sand); font-size: 11px;">— OR PAY WITH CRYPTO —</div>
+ 
+          <button class="crypto-btn" data-pay-method="basqet" data-currency="3" onclick="selectPaymentOption(this, 'basqet', 3)">
             <img src="https://cryptologos.cc/logos/tether-usdt-logo.svg?v=032" alt="USDT">
             <span>USDT (Tether) via Basqet</span>
           </button>
-          <button class="crypto-btn" onclick="initiatePayment(4)">
+          <button class="crypto-btn" data-pay-method="basqet" data-currency="4" onclick="selectPaymentOption(this, 'basqet', 4)">
             <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.svg?v=032" alt="BTC">
             <span>BTC (Bitcoin) via Basqet</span>
           </button>
-          <button class="crypto-btn" onclick="initiatePayment(6)">
+          <button class="crypto-btn" data-pay-method="basqet" data-currency="6" onclick="selectPaymentOption(this, 'basqet', 6)">
             <img src="https://cryptologos.cc/logos/ethereum-eth-logo.svg?v=032" alt="ETH">
             <span>ETH (Ethereum) via Basqet</span>
           </button>
+        </div>
+
+        <!-- Proceed Action Button -->
+        <div id="proceed-button-container" class="hidden" style="margin-top: 20px; display: flex; justify-content: center;">
+          <button class="btn-primary" style="width: 100%; padding: 14px;" onclick="handleProceedPayment()">Proceed to Payment</button>
         </div>
       </div>
 
