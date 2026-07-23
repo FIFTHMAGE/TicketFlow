@@ -697,11 +697,17 @@ app.post('/api/admin/events', requireAdmin, async (req, res) => {
 
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
-db.initDb().then(() => {
-  app.listen(PORT, () => {
-    console.log(`[SERVER] StableFlow running at http://localhost:${PORT}`);
+if (process.env.NODE_ENV !== 'production') {
+  db.initDb().then(() => {
+    app.listen(PORT, () => {
+      console.log(`[SERVER] StableFlow running at http://localhost:${PORT}`);
+    });
+  }).catch((err) => {
+    console.error('[SERVER] Failed to init DB:', err);
+    process.exit(1);
   });
-}).catch((err) => {
-  console.error('[SERVER] Failed to init DB:', err);
-  process.exit(1);
-});
+} else {
+  db.initDb().catch(err => console.warn('[SERVER] DB check failed on cold start:', err.message));
+}
+
+module.exports = app;
