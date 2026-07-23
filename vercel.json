@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "cleanUrls": false,
+  "trailingSlash": false,
   "builds": [
     {
       "src": "backend/server.js",
