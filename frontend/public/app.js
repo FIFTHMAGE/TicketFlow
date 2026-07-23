@@ -228,6 +228,8 @@ async function initiatePayment(currencyId) {
     return;
   }
 
+  setProceedButtonLoading(true);
+
   try {
     // 1. Reserve the ticket first
     if (!activeReservationId) {
@@ -297,10 +299,14 @@ async function initiatePayment(currencyId) {
       document.getElementById('checkout-title').innerText = 'Complete Payment';
       document.getElementById('checkout-step-init').classList.add('hidden');
       document.getElementById('checkout-step-pay').classList.remove('hidden');
+    } else {
+      alert(payData.error || 'Failed to initialize payment session');
     }
   } catch (err) {
     console.error('Error initiating checkout:', err);
     alert('Failed to initialize checkout session');
+  } finally {
+    setProceedButtonLoading(false);
   }
 }
 
@@ -317,6 +323,8 @@ async function initiateNombaPayment() {
     alert('Please enter a valid email address.');
     return;
   }
+
+  setProceedButtonLoading(true);
 
   try {
     // 1. Reserve the ticket first
@@ -375,10 +383,31 @@ async function initiateNombaPayment() {
       document.getElementById('checkout-title').innerText = 'Complete Payment';
       document.getElementById('checkout-step-init').classList.add('hidden');
       document.getElementById('checkout-step-pay').classList.remove('hidden');
+    } else {
+      alert(payData.error || 'Failed to initialize Nomba payment');
     }
   } catch (err) {
     console.error('Error initiating Nomba checkout:', err);
     alert('Failed to initialize checkout session');
+  } finally {
+    setProceedButtonLoading(false);
+  }
+}
+
+function setProceedButtonLoading(isLoading) {
+  const btn = document.getElementById('proceed-payment-btn');
+  if (!btn) return;
+
+  if (isLoading) {
+    btn.disabled = true;
+    btn.innerText = 'Initializing payment...';
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'not-allowed';
+  } else {
+    btn.disabled = false;
+    btn.innerText = 'Proceed to Payment';
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
   }
 }
 
