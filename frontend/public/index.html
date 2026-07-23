@@ -31,29 +31,37 @@
       <div class="loading-spinner">Loading events storefront...</div>
     </div>
 
-    <!-- Basqet Simulation Modal -->
+    <!-- Checkout Modal -->
     <div class="modal-overlay" id="checkout-modal">
       <div class="checkout-card glass">
         <div class="checkout-header">
-          <h3>Basqet Checkout</h3>
+          <h3 id="checkout-title">Select Payment Method</h3>
           <button class="close-btn" onclick="closeCheckout()">&times;</button>
         </div>
         
         <div class="checkout-body">
           <div id="checkout-step-init">
-            <p class="checkout-info">Choose your cryptocurrency to pay:</p>
+            <p class="checkout-info">Choose your preferred payment method:</p>
             <div class="crypto-options">
+              <!-- Nomba Integration -->
+              <button class="crypto-btn" onclick="initiateNombaPayment()" style="background-color: rgba(16, 185, 129, 0.08); border-color: rgba(16, 185, 129, 0.3);">
+                <span style="font-size: 20px; margin-right: 5px;">💳</span>
+                <span>Nomba (Card / Bank Transfer)</span>
+              </button>
+              
+              <div style="text-align: center; margin: 10px 0; color: var(--text-secondary); font-size: 11px;">— OR PAY WITH CRYPTO —</div>
+
               <button class="crypto-btn" onclick="initiatePayment(3)">
                 <img src="https://cryptologos.cc/logos/tether-usdt-logo.svg?v=032" alt="USDT">
-                <span>USDT (Tether)</span>
+                <span>USDT (Tether) via Basqet</span>
               </button>
               <button class="crypto-btn" onclick="initiatePayment(4)">
                 <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.svg?v=032" alt="BTC">
-                <span>BTC (Bitcoin)</span>
+                <span>BTC (Bitcoin) via Basqet</span>
               </button>
               <button class="crypto-btn" onclick="initiatePayment(6)">
                 <img src="https://cryptologos.cc/logos/ethereum-eth-logo.svg?v=032" alt="ETH">
-                <span>ETH (Ethereum)</span>
+                <span>ETH (Ethereum) via Basqet</span>
               </button>
             </div>
           </div>

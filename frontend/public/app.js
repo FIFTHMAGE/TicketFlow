@@ -51,6 +51,7 @@ function closeCheckout() {
 }
 
 async function initiatePayment(currencyId) {
+  activePaymentGateway = 'basqet';
   const customerName = "Demo Customer";
   const customerEmail = "customer@example.com";
 
@@ -91,11 +92,65 @@ async function initiatePayment(currencyId) {
   }
 }
 
+let activePaymentGateway = 'basqet';
+
+async function initiateNombaPayment() {
+  const customerName = "Demo Customer";
+  const customerEmail = "customer@example.com";
+  activePaymentGateway = 'nomba';
+
+  try {
+    const res = await fetch(`${API_BASE}/purchase`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventId: activeEvent, customerName, customerEmail })
+    });
+    const initData = await res.json();
+    const transaction = initData.transaction;
+    
+    activeTransactionId = transaction.id;
+
+    const payRes = await fetch(`${API_BASE}/nomba/pay-initiate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactionId: activeTransactionId })
+    });
+    const payData = await payRes.json();
+    
+    if (payData.status === 'success') {
+      const details = payData.data;
+      
+      document.getElementById('checkout-price-fiat').innerText = `₦${transaction.amount.toLocaleString()}`;
+      document.getElementById('checkout-price-crypto').innerText = `Nomba Card / Transfer`;
+      document.getElementById('deposit-address').value = details.bank_account;
+      
+      const qrBox = document.getElementById('qr-code-box');
+      qrBox.innerHTML = `
+        <div style="font-size: 13px; text-align: center; color: #fff; padding: 20px;">
+          <strong>Nomba Checkout</strong><br/>
+          Bank: Nomba microfinance Bank<br/>
+          Account: ${details.bank_account}
+        </div>
+      `;
+
+      document.getElementById('checkout-step-init').classList.add('hidden');
+      document.getElementById('checkout-step-pay').classList.remove('hidden');
+    }
+  } catch (err) {
+    console.error('Error initiating Nomba checkout:', err);
+    alert('Failed to initialize checkout session');
+  }
+}
+
 async function confirmPaymentSimulation() {
   if (!activeTransactionId) return;
 
   try {
-    const res = await fetch(`${API_BASE}/confirm-simulation` || `${API_BASE}/basqet/confirm-simulation`, {
+    const url = activePaymentGateway === 'nomba' 
+      ? `${API_BASE}/nomba/confirm-simulation`
+      : `${API_BASE}/basqet/confirm-simulation`;
+
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ transactionId: activeTransactionId })
@@ -103,7 +158,7 @@ async function confirmPaymentSimulation() {
     const data = await res.json();
     
     if (data.status === 'success') {
-      alert('Simulated Crypto Payment Complete. Ledger updated.');
+      alert(`Simulated ${activePaymentGateway === 'nomba' ? 'Nomba' : 'Basqet'} Payment Complete. Ledger updated.`);
       closeCheckout();
     }
   } catch (err) {

@@ -146,6 +146,36 @@ app.post('/api/basqet/pay-initiate', async (req, res) => {
   }
 });
 
+// API: Simulate payment initiation on Nomba (creates mock bank transfer account details)
+app.post('/api/nomba/pay-initiate', async (req, res) => {
+  const { transactionId } = req.body;
+
+  try {
+    const tx = await db.get('SELECT * FROM transactions WHERE reference = ?', [transactionId]);
+    if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+
+    const mockBankAccount = `998877${Math.floor(1000 + Math.random() * 9000)}`;
+
+    // Update Transaction state in DB
+    await db.run(
+      "UPDATE transactions SET status = ?, payment_address = ? WHERE reference = ?",
+      ['PAYMENT_PENDING', mockBankAccount, transactionId]
+    );
+
+    res.json({
+      status: 'success',
+      data: {
+        id: transactionId,
+        reference: transactionId,
+        status: 'PAYMENT_PENDING',
+        bank_account: mockBankAccount
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // API: Simulated Payment Confirmation (Simulating what the Basqet webhook does internally)
 app.post('/api/basqet/confirm-simulation', async (req, res) => {
   const { transactionId } = req.body;
@@ -170,6 +200,36 @@ app.post('/api/basqet/confirm-simulation', async (req, res) => {
     res.json({
       status: 'success',
       message: 'Payment confirmed & allocated to ledger successfully'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Simulated Nomba checkout payment confirmation
+app.post('/api/nomba/confirm-simulation', async (req, res) => {
+  const { transactionId } = req.body;
+
+  try {
+    const tx = await db.get('SELECT * FROM transactions WHERE reference = ?', [transactionId]);
+    if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+
+    if (tx.status === 'PAYMENT_CONFIRMED' || tx.status === 'ALLOCATED_TO_LEDGER') {
+      return res.json({ message: 'Transaction already paid' });
+    }
+
+    // Set confirmed amount
+    await db.run(
+      'UPDATE transactions SET status = ?, confirmed_amount = ? WHERE reference = ?',
+      ['PAYMENT_CONFIRMED', tx.gross_amount, transactionId]
+    );
+
+    // Record purchase inside the ledger
+    await ledger.recordPurchase(tx.reference, tx.gross_amount, tx.platform_id, tx.vendor_id);
+
+    res.json({
+      status: 'success',
+      message: 'Nomba payment confirmed & allocated to ledger successfully'
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

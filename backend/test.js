@@ -196,6 +196,34 @@ const runTests = async () => {
   assert(feeBal.balance === 2500.0, 'Platform revenue reversed (returned platform fee share)');
   assert(vendorBal.balance === 0.0, 'Vendor payable reversed (debited vendor share)');
 
+  // Test 7: Nomba Storefront Payment Option Checkout & Ledger Allocation
+  console.log('Testing Nomba storefront payment option checkout...');
+  
+  const nombaTxRef = 'NOMBA_PAY_TEST_REF';
+  const nombaGross = 20000.0;
+
+  // Insert transaction representing a Nomba payment initialization
+  await db.run(
+    `INSERT INTO transactions (id, reference, platform_id, vendor_id, marketplace_item_id, gross_amount, platform_fee, vendor_amount, status) 
+     VALUES (?, ?, ?, 'vendor_tix_organizer', 'item_tech_ticket', ?, 0.0, 0.0, 'PAYMENT_PENDING')`,
+    [nombaTxRef, nombaTxRef, platformId, nombaGross]
+  );
+
+  // Call the confirm ledger record function
+  await ledger.recordPurchase(nombaTxRef, nombaGross, platformId, 'vendor_tix_organizer');
+
+  // Verify allocations based on 75/25 split configured in Test 1
+  const nombaPoolAcc = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'SETTLEMENT_POOL'");
+  const nombaFeeAcc = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'PLATFORM_REVENUE'");
+  const nombaVendorAcc = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'VENDOR_PAYABLE_vendor_tix_organizer'");
+
+  // Previous pool balance was 110,000 - 5,000 (Test 3 payout) + 10,000 (refund test addition) - 10,000 (refund test removal) + 20,000 (Nomba test) = 125000
+  assert(nombaPoolAcc.balance === 125000.0, 'Nomba Payment debited Settlement Pool correctly');
+  // Previous fee was 2500 + 1000 - 1000 + 5000 (25% of 20000) = 7500
+  assert(nombaFeeAcc.balance === 7500.0, 'Nomba Payment platform split share credited correctly');
+  // Previous vendor balance was 0 + 9000 - 9000 + 15000 (75% of 20000) = 15000
+  assert(nombaVendorAcc.balance === 15000.0, 'Nomba Payment vendor split share credited correctly');
+
   console.log('\n🎉 ALL REVISED INTEGRATION TESTS PASSED SUCCESSFULLY! 🎉');
 };
 
