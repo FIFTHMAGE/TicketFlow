@@ -4,14 +4,6 @@
     {
       "source": "/api/(.*)",
       "destination": "/backend/server.js"
-    },
-    {
-      "source": "/admin/(.*)",
-      "destination": "/backend/server.js"
-    },
-    {
-      "source": "/((?!api|admin).*)" ,
-      "destination": "/backend/server.js"
     }
   ]
 }
