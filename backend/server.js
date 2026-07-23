@@ -461,7 +461,7 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
         });
         const tokenData = await tokenResp.json();
         const token = tokenData.data?.access_token || tokenData.access_token;
-
+        if (token) {
           const checkoutResp = await fetch(`${process.env.NODE_ENV === 'production' ? 'https://api.nomba.com/v1' : 'https://api.nomba.com/c/v1'}/checkout/initialize`, {
             method: 'POST',
             headers: {
