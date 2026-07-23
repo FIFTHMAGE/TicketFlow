@@ -522,6 +522,95 @@ app.post(['/api/basqet/confirm-simulation', '/api-v1/basqet/confirm-simulation']
   }
 });
 
+// ── Real payment verification query endpoints ───────────────────────────────
+app.post(['/api/basqet/verify', '/api-v1/basqet/verify'], async (req, res) => {
+  const { transactionId } = req.body;
+  if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });
+
+  try {
+    const tx = await db.get('SELECT * FROM transactions WHERE reference = ?', [transactionId]);
+    if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+
+    // If already allocated to ledger, return success instantly
+    if (tx.status === 'ALLOCATED_TO_LEDGER' || tx.status === 'PAYMENT_CONFIRMED') {
+      return res.json({ status: 'success', message: 'Payment confirmed and ledger credited' });
+    }
+
+    if (process.env.BASQET_PRIVATE_KEY && process.env.BASQET_API_URL) {
+      // Query the real Basqet API for transaction status
+      const basqetResp = await fetch(`${process.env.BASQET_API_URL}/v1/transaction/${transactionId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${process.env.BASQET_PRIVATE_KEY}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      const basqetData = await basqetResp.json();
+      if (!basqetResp.ok) {
+        return res.status(basqetResp.status).json({ error: basqetData.message || 'Error querying Basqet API' });
+      }
+
+      const basqetStatus = basqetData.data?.status; // e.g. "successful", "pending", "initiated"
+      console.log(`[BASQET VERIFY] Transaction ${transactionId} status is:`, basqetStatus);
+
+      if (basqetStatus === 'successful' || basqetStatus === 'SUCCESSFUL') {
+        // Update database status
+        await db.run(
+          'UPDATE transactions SET status = ?, confirmed_amount = ? WHERE reference = ?',
+          ['PAYMENT_CONFIRMED', tx.gross_amount, transactionId]
+        );
+        // Write to double-entry ledger
+        await ledger.recordPurchase(tx.reference, tx.gross_amount, tx.platform_id, tx.vendor_id);
+
+        // Convert the reservation if exists
+        try {
+          const reservation = await db.get('SELECT id FROM reservations WHERE transaction_id = ?', [transactionId]);
+          if (reservation) {
+            await reservations.convertReservation(reservation.id);
+          }
+        } catch (resErr) {
+          console.warn('[VERIFY-BASQET] Reservation conversion failed (non-fatal):', resErr.message);
+        }
+
+        try {
+          await sendTicketEmail(tx, tx.customer_email, tx.customer_name);
+        } catch (mailErr) {
+          console.warn('[VERIFY] Ticket email failed (non-fatal):', mailErr.message);
+        }
+
+        return res.json({ status: 'success', message: 'Payment confirmed and ledger credited' });
+      } else {
+        return res.json({ status: 'pending', message: `Payment is still ${basqetStatus || 'pending'}. Please complete the payment on your wallet.` });
+      }
+    }
+
+    // Fallback if no keys (simulate check status)
+    return res.json({ status: 'pending', message: 'No payment detected yet. Please complete the transfer.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post(['/api/nomba/verify', '/api-v1/nomba/verify'], async (req, res) => {
+  const { transactionId } = req.body;
+  if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });
+
+  try {
+    const tx = await db.get('SELECT * FROM transactions WHERE reference = ?', [transactionId]);
+    if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+
+    if (tx.status === 'ALLOCATED_TO_LEDGER' || tx.status === 'PAYMENT_CONFIRMED') {
+      return res.json({ status: 'success', message: 'Payment confirmed and ledger credited' });
+    }
+
+    // Real Nomba check would fetch Nomba status here.
+    return res.json({ status: 'pending', message: 'No payment detected yet. Please complete the bank transfer.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post(['/api/nomba/confirm-simulation', '/api-v1/nomba/confirm-simulation'], async (req, res) => {
   const { transactionId } = req.body;
   if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });

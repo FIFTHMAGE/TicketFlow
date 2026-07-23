@@ -374,13 +374,13 @@ async function initiateNombaPayment() {
   }
 }
 
-async function confirmPaymentSimulation() {
+async function checkPaymentStatus() {
   if (!activeTransactionId) return;
 
   try {
     const url = activePaymentGateway === 'nomba' 
-      ? `${API_BASE}/nomba/confirm-simulation`
-      : `${API_BASE}/basqet/confirm-simulation`;
+      ? `${API_BASE}/nomba/verify`
+      : `${API_BASE}/basqet/verify`;
 
     const res = await fetch(url, {
       method: 'POST',
@@ -390,14 +390,17 @@ async function confirmPaymentSimulation() {
     const data = await res.json();
     
     if (data.status === 'success') {
-      alert(`Simulated ${activePaymentGateway === 'nomba' ? 'Nomba' : 'Basqet'} Payment Complete. Ledger updated.`);
+      alert(`Payment Confirmed! Ledger updated successfully.`);
       activeReservationId = null; // cleared since it's converted
       closeCheckout();
       loadPublicStats(); // refresh visual dashboard instantly
+    } else {
+      // Show pending check details returned by server
+      alert(data.message || 'Payment verification is pending. Please wait.');
     }
   } catch (err) {
-    console.error('Error completing simulated payment:', err);
-    alert('Verification failed');
+    console.error('Error verifying payment:', err);
+    alert('Verification check failed. Please try again.');
   }
 }
 
