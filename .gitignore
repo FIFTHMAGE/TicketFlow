@@ -1,0 +1,4 @@
+node_modules/
+backend/stableflow_marketplace.db
+.env
+.DS_Store

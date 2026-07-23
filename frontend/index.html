@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StableFlow Marketplace Settlement Infrastructure</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-logo">
+      <div class="logo-orb"></div>
+      <h1>StableFlow <span>Marketplace Settlement</span></h1>
+    </div>
+    <div class="header-status">
+      <span class="status-badge" id="reconciliation-status">
+        <span class="status-indicator-green"></span> Reconciled
+      </span>
+    </div>
+  </header>
+
+  <main class="dashboard-layout">
+    
+    <!-- Left Column: Marketplace Storefront & Checkout Simulation -->
+    <section class="column-storefront">
+      <div class="section-title-wrapper">
+        <h2 class="section-heading">Event Ticket Storefront</h2>
+        <p class="section-subheading">Select tickets to purchase via Basqet crypto infrastructure</p>
+      </div>
+
+      <div class="events-grid" id="events-grid">
+        <!-- Event cards will be dynamically loaded here -->
+        <div class="loading-spinner">Loading events storefront...</div>
+      </div>
+
+      <!-- Simulated Basqet Checkout Modal (Overlay) -->
+      <div class="modal-overlay" id="checkout-modal">
+        <div class="checkout-card glass">
+          <div class="checkout-header">
+            <h3>Basqet Checkout</h3>
+            <button class="close-btn" onclick="closeCheckout()">&times;</button>
+          </div>
+          
+          <div class="checkout-body">
+            <!-- Step 1: Crypto selection -->
+            <div id="checkout-step-init">
+              <p class="checkout-info">Choose your payment cryptocurrency to lock rate:</p>
+              <div class="crypto-options">
+                <button class="crypto-btn" onclick="initiatePayment(3)">
+                  <img src="https://cryptologos.cc/logos/tether-usdt-logo.svg?v=032" alt="USDT">
+                  <span>USDT (Tether)</span>
+                </button>
+                <button class="crypto-btn" onclick="initiatePayment(4)">
+                  <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.svg?v=032" alt="BTC">
+                  <span>BTC (Bitcoin)</span>
+                </button>
+                <button class="crypto-btn" onclick="initiatePayment(6)">
+                  <img src="https://cryptologos.cc/logos/ethereum-eth-logo.svg?v=032" alt="ETH">
+                  <span>ETH (Ethereum)</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 2: Rate lock and payment details -->
+            <div id="checkout-step-pay" class="hidden">
+              <div class="payment-summary">
+                <div class="price-row">
+                  <span>Total Amount:</span>
+                  <span class="price-fiat" id="checkout-price-fiat">₦0.00</span>
+                </div>
+                <div class="price-row-crypto">
+                  <span>Pay:</span>
+                  <span class="price-crypto" id="checkout-price-crypto">0.00 USDC</span>
+                </div>
+              </div>
+
+              <div class="qr-address-card">
+                <div class="qr-code-placeholder" id="qr-code-box">
+                  <!-- Simulated QR code generated dynamically -->
+                  <div class="mock-qr">QR</div>
+                </div>
+                <div class="address-copy-box">
+                  <label>Deposit Address</label>
+                  <div class="copy-input">
+                    <input type="text" id="deposit-address" readonly>
+                  </div>
+                </div>
+              </div>
+
+              <div class="checkout-footer">
+                <button class="action-btn glow" onclick="confirmPaymentSimulation()">Simulate Payment Confirm</button>
+                <p class="timeout-warning">🔒 Exchange rate locked for 10 minutes</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: Ledger, Payout Batches & Admin Controls -->
+    <section class="column-ledger">
+      <div class="section-title-wrapper flex-space">
+        <div>
+          <h2 class="section-heading">Ledger & Settlement Layer</h2>
+          <p class="section-subheading">Double-entry ledger source of truth for platform and vendors</p>
+        </div>
+        <button class="action-btn borderless glow" onclick="triggerSettlementBatch()">
+          Trigger Payout Batch
+        </button>
+      </div>
+
+      <!-- Ledger Accounts Cards Grid -->
+      <div class="accounts-grid" id="accounts-grid">
+        <!-- Render ledger accounts -->
+      </div>
+
+      <!-- Batches & Payouts Panel -->
+      <div class="panel-section glass">
+        <h3>Settlement Batches & Payout Status</h3>
+        <div class="batches-list-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Batch ID</th>
+                <th>Status</th>
+                <th>Created At</th>
+              </tr>
+            </thead>
+            <tbody id="batches-table-body">
+              <tr>
+                <td colspan="3" class="text-center text-muted">No batches run yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Ledger Transactions Journal -->
+      <div class="panel-section glass">
+        <h3>Double-Entry Ledger Entries (Journal)</h3>
+        <div class="ledger-journal-wrapper">
+          <table class="data-table font-mono-table">
+            <thead>
+              <tr>
+                <th>Reference</th>
+                <th>Account ID</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="ledger-table-body">
+              <tr>
+                <td colspan="5" class="text-center text-muted">No ledger records yet. Buy a ticket to generate logs.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- JS Bundle -->
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StableFlow Ledger & Batch Admin Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-logo">
+      <div class="logo-orb"></div>
+      <h1>StableFlow <span>Admin Console</span></h1>
+    </div>
+    <div class="header-status">
+      <span class="status-badge" id="reconciliation-status">
+        <span class="status-indicator-green"></span> Reconciled
+      </span>
+      <button class="action-btn borderless" style="margin-left: 15px;" onclick="logout()">Sign Out</button>
+    </div>
+  </header>
+
+  <main class="dashboard-layout">
+    <!-- Left Column: Accounts and Actions -->
+    <section class="column-ledger">
+      <div class="section-title-wrapper flex-space">
+        <div>
+          <h2 class="section-heading">Ledger Accounts</h2>
+          <p class="section-subheading">Source of truth real-time asset and liability pools</p>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button class="action-btn borderless glow" onclick="runReconciliationJob()">Run Reconciliation</button>
+          <button class="action-btn glow" onclick="triggerSettlementBatch()">Trigger Payout Batch</button>
+        </div>
+      </div>
+
+      <!-- Ledger Accounts Grid -->
+      <div class="accounts-grid" id="accounts-grid">
+        <div class="loading-spinner">Loading accounts...</div>
+      </div>
+
+      <!-- Reconciliation Flags Panel -->
+      <div class="panel-section glass">
+        <h3 style="color: #ef4444; display: flex; align-items: center; gap: 8px;">
+          ⚠️ Reconciliation Flags & Mismatch Alerts
+        </h3>
+        <div class="batches-list-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Reference</th>
+                <th>Type</th>
+                <th>Diff</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="flags-table-body">
+              <tr>
+                <td colspan="4" class="text-center text-muted">No reconciliation flags.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Batches & Payouts List -->
+      <div class="panel-section glass">
+        <h3>Settlement Payout Batches</h3>
+        <div class="batches-list-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Batch ID</th>
+                <th>Status</th>
+                <th>Created At</th>
+              </tr>
+            </thead>
+            <tbody id="batches-table-body">
+              <tr>
+                <td colspan="3" class="text-center text-muted">No batches run yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: Ledger Journal entries and transactions -->
+    <section class="column-ledger">
+      <div class="section-title-wrapper">
+        <h2 class="section-heading">Ledger Entries (Journal Logs)</h2>
+        <p class="section-subheading">Double-entry audit logs</p>
+      </div>
+
+      <div class="panel-section glass" style="margin-bottom: 20px;">
+        <h3>Ledger Sheet</h3>
+        <div class="ledger-journal-wrapper" style="max-height: 500px;">
+          <table class="data-table font-mono-table">
+            <thead>
+              <tr>
+                <th>Ref</th>
+                <th>Account</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody id="ledger-table-body">
+              <tr>
+                <td colspan="5" class="text-center text-muted">No ledger entries.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

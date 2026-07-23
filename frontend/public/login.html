@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Login - StableFlow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <main class="login-container">
+    <div class="login-card glass">
+      <div class="login-logo text-center">
+        <div class="logo-orb"></div>
+        <h2>StableFlow Admin</h2>
+        <p class="text-secondary">Sign in to access ledger & batches dashboard</p>
+      </div>
+
+      <form id="login-form">
+        <div class="input-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" required placeholder="admin">
+        </div>
+        <div class="input-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" required placeholder="password123">
+        </div>
+        <button type="submit" class="action-btn glow w-full">Sign In</button>
+      </form>
+      <div id="login-error" class="error-msg text-center text-danger hidden" style="margin-top: 15px; font-size: 13px;"></div>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const errorDiv = document.getElementById('login-error');
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        
+        const data = await res.json();
+        if (res.ok) {
+          // Store token in localStorage
+          localStorage.setItem('admin_token', data.token);
+
+          // Set cookie for browser page access to /admin
+          document.cookie = `admin_token=${data.token}; path=/; max-age=28800; SameSite=Strict`;
+
+          // Redirect to gated admin dashboard
+          window.location.href = `/admin/index.html?token=${data.token}`;
+        } else {
+          errorDiv.innerText = data.error || 'Login failed';
+          errorDiv.classList.remove('hidden');
+        }
+      } catch (err) {
+        errorDiv.innerText = 'Network error. Try again.';
+        errorDiv.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>

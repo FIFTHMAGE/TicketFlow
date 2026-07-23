@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StableFlow Events Storefront</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-logo">
+      <div class="logo-orb"></div>
+      <h1>StableFlow <span>Events Gateway</span></h1>
+    </div>
+    <div>
+      <a href="/admin/index.html" class="action-btn borderless">Admin Console</a>
+    </div>
+  </header>
+
+  <main class="storefront-container">
+    <div class="storefront-header text-center">
+      <h2>Explore Premier Events</h2>
+      <p class="text-secondary">Accepting payment in USDT, BTC, and ETH via Basqet crypto infrastructure</p>
+    </div>
+
+    <div class="events-grid-full" id="events-grid">
+      <div class="loading-spinner">Loading events storefront...</div>
+    </div>
+
+    <!-- Basqet Simulation Modal -->
+    <div class="modal-overlay" id="checkout-modal">
+      <div class="checkout-card glass">
+        <div class="checkout-header">
+          <h3>Basqet Checkout</h3>
+          <button class="close-btn" onclick="closeCheckout()">&times;</button>
+        </div>
+        
+        <div class="checkout-body">
+          <div id="checkout-step-init">
+            <p class="checkout-info">Choose your cryptocurrency to pay:</p>
+            <div class="crypto-options">
+              <button class="crypto-btn" onclick="initiatePayment(3)">
+                <img src="https://cryptologos.cc/logos/tether-usdt-logo.svg?v=032" alt="USDT">
+                <span>USDT (Tether)</span>
+              </button>
+              <button class="crypto-btn" onclick="initiatePayment(4)">
+                <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.svg?v=032" alt="BTC">
+                <span>BTC (Bitcoin)</span>
+              </button>
+              <button class="crypto-btn" onclick="initiatePayment(6)">
+                <img src="https://cryptologos.cc/logos/ethereum-eth-logo.svg?v=032" alt="ETH">
+                <span>ETH (Ethereum)</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="checkout-step-pay" class="hidden">
+            <div class="payment-summary">
+              <div class="price-row">
+                <span>Total Amount:</span>
+                <span class="price-fiat" id="checkout-price-fiat">₦0.00</span>
+              </div>
+              <div class="price-row-crypto">
+                <span>Pay:</span>
+                <span class="price-crypto" id="checkout-price-crypto">0.00 USDC</span>
+              </div>
+            </div>
+
+            <div class="qr-address-card">
+              <div class="qr-code-placeholder" id="qr-code-box">
+                <div class="mock-qr">QR</div>
+              </div>
+              <div class="address-copy-box">
+                <label>Deposit Address</label>
+                <div class="copy-input">
+                  <input type="text" id="deposit-address" readonly>
+                </div>
+              </div>
+            </div>
+
+            <div class="checkout-footer">
+              <button class="action-btn glow" onclick="confirmPaymentSimulation()">Simulate Payment Confirm</button>
+              <p class="timeout-warning">🔒 Exchange rate locked for 10 minutes</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
