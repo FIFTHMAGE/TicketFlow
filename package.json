@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node backend/server.js",
+    "dev": "node --watch backend/server.js",
+    "test": "node backend/test.js"
   },
   "keywords": [],
   "author": "",
@@ -14,8 +16,11 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.6.0",
     "jsonwebtoken": "^9.0.3",
     "pg": "^8.22.0",
+    "qrcode": "^1.5.4",
+    "resend": "^6.18.0",
     "sqlite3": "^6.0.1"
   }
 }

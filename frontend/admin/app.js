@@ -1,11 +1,8 @@
-// Get token from URL query or localStorage
-const urlParams = new URLSearchParams(window.location.search);
-let token = urlParams.get('token') || localStorage.getItem('admin_token');
+// Read token exclusively from localStorage — never from URL params (security)
+let token = localStorage.getItem('admin_token');
 
 if (!token) {
   logout();
-} else {
-  localStorage.setItem('admin_token', token);
 }
 
 // Fetch helper with auth header

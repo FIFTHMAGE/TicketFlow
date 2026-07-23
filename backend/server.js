@@ -1,14 +1,33 @@
 require('dotenv').config();
+
+// ── Startup secret guard ────────────────────────────────────────────────────
+const DANGEROUS_DEFAULTS = {
+  ADMIN_JWT_SECRET: 'stableflow_super_secret_payout_ledger',
+  BASQET_WEBHOOK_SECRET: 'basqet_secret_sandbox_123',
+  NOMBA_WEBHOOK_SECRET: 'nomba_secret_sandbox_123'
+};
+
+if (process.env.NODE_ENV === 'production') {
+  for (const [key, defaultVal] of Object.entries(DANGEROUS_DEFAULTS)) {
+    if (!process.env[key] || process.env[key] === defaultVal) {
+      console.error(`[STARTUP] FATAL: ${key} must be changed from its default value in production.`);
+      process.exit(1);
+    }
+  }
+}
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
 
 const db = require('./db');
 const ledger = require('./ledger');
 const settlement = require('./settlement');
 const reconciliation = require('./reconciliation');
+const { sendTicketEmail } = require('./mailer');
 const { requireAdmin, JWT_SECRET } = require('./middleware/auth');
 const { handleBasqetWebhook } = require('./webhooks/basqet');
 const { handleNombaWebhook } = require('./webhooks/nomba');
@@ -16,42 +35,85 @@ const { handleNombaWebhook } = require('./webhooks/nomba');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+// ── CORS ─────────────────────────────────────────────────────────────────────
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+  : ['http://localhost:3000'];
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true
+}));
+
+// ── Raw body capture for webhook HMAC ──────────────────────────────────────
+// Must be registered BEFORE express.json() for webhook routes
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/webhooks/')) {
+    let data = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk) => { data += chunk; });
+    req.on('end', () => {
+      req.rawBody = data;
+      req.body = JSON.parse(data || '{}');
+      next();
+    });
+  } else {
+    next();
+  }
+});
+
 app.use(express.json());
 
-// Gated static admin dashboard before files are served
+// ── Rate limiting ─────────────────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  message: { error: 'Too many login attempts. Try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const paymentLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,
+  message: { error: 'Too many payment requests. Slow down.' }
+});
+
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 200,
+  message: { error: 'Webhook rate limit exceeded.' }
+});
+
+// ── Static file serving ───────────────────────────────────────────────────
 app.use('/admin', requireAdmin, express.static(path.join(__dirname, '../frontend/admin')));
-
-// Serve public storefront static folder
-app.use(express.static(path.join(__dirname, '../frontend/public')));
-// Also serve login.html in public
 app.use(express.static(path.join(__dirname, '../frontend/public')));
 
-// AUTH API: Admin Login
-app.post('/api/auth/login', async (req, res) => {
+// ── Auth ─────────────────────────────────────────────────────────────────────
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'username and password are required' });
+  }
 
   try {
     const admin = await db.get('SELECT * FROM admins WHERE username = ?', [username]);
-    if (!admin) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
+    if (!admin) return res.status(401).json({ error: 'Invalid credentials' });
 
-    const validPassword = await bcrypt.compare(password, admin.password_hash);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
+    const valid = await bcrypt.compare(password, admin.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
-    // Generate JWT token using real database role (ADMIN or FINANCE)
     const token = jwt.sign({ username: admin.username, role: admin.role }, JWT_SECRET, { expiresIn: '8h' });
-
     res.json({ token, username: admin.username, role: admin.role });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// API: Get storefront events
+// ── Public storefront APIs ────────────────────────────────────────────────
 app.get('/api/events', async (req, res) => {
   try {
     const items = await db.all(`
@@ -59,6 +121,7 @@ app.get('/api/events', async (req, res) => {
       FROM marketplace_items m
       JOIN platforms p ON m.platform_id = p.id
       JOIN vendors v ON m.vendor_id = v.id
+      WHERE m.status = 'ACTIVE'
     `);
     res.json(items);
   } catch (err) {
@@ -66,7 +129,6 @@ app.get('/api/events', async (req, res) => {
   }
 });
 
-// API: Get public ledger summary metrics for homepage mockup
 app.get('/api/public-stats', async (req, res) => {
   try {
     const pool = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'SETTLEMENT_POOL'");
@@ -83,34 +145,40 @@ app.get('/api/public-stats', async (req, res) => {
   }
 });
 
-// API: Initialize purchase (Customer storefront)
-app.post('/api/purchase', async (req, res) => {
+// ── Checkout: initiate purchase ───────────────────────────────────────────
+app.post('/api/purchase', paymentLimiter, async (req, res) => {
   const { eventId, customerName, customerEmail } = req.body;
+
+  if (!eventId) return res.status(400).json({ error: 'eventId is required' });
+  if (!customerName) return res.status(400).json({ error: 'customerName is required' });
+  if (!customerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+    return res.status(400).json({ error: 'A valid customerEmail is required' });
+  }
 
   try {
     const item = await db.get('SELECT * FROM marketplace_items WHERE id = ?', [eventId]);
-    if (!item) return res.status(404).json({ error: 'Event ticket not found' });
+    if (!item) return res.status(404).json({ error: 'Event not found' });
 
     const platform = await db.get('SELECT * FROM platforms WHERE id = ?', [item.platform_id]);
     if (!platform) return res.status(404).json({ error: 'Platform not found' });
 
-    const reference = `SF_REF_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const reference = `SF_${Date.now()}_${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
     const grossAmount = item.price;
-    const platformFee = (grossAmount * platform.platform_split_pct) / 100.0;
-    const vendorAmount = grossAmount - platformFee;
+    const platformFee = Math.round((grossAmount * platform.platform_split_pct) / 100 * 100) / 100;
+    const vendorAmount = Math.round((grossAmount - platformFee) * 100) / 100;
 
-    // 1. Create Transaction record
     await db.run(
-      `INSERT INTO transactions (id, reference, platform_id, vendor_id, marketplace_item_id, gross_amount, platform_fee, vendor_amount, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [reference, reference, item.platform_id, item.vendor_id, item.id, grossAmount, platformFee, vendorAmount, 'INITIATED']
+      `INSERT INTO transactions 
+        (id, reference, platform_id, vendor_id, marketplace_item_id, gross_amount, platform_fee, vendor_amount, status, customer_name, customer_email) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [reference, reference, item.platform_id, item.vendor_id, item.id, grossAmount, platformFee, vendorAmount, 'INITIATED', customerName, customerEmail]
     );
 
     res.json({
       message: 'Transaction initialized',
       transaction: {
         id: reference,
-        reference: reference,
+        reference,
         status: 'INITIATED',
         amount: grossAmount,
         currency: 'NGN',
@@ -122,26 +190,60 @@ app.post('/api/purchase', async (req, res) => {
   }
 });
 
-// API: Simulate payment initiation on Basqet (locks crypto rate & assigns payment info)
-app.post('/api/basqet/pay-initiate', async (req, res) => {
+// ── Basqet: initiate crypto payment ──────────────────────────────────────
+app.post('/api/basqet/pay-initiate', paymentLimiter, async (req, res) => {
   const { transactionId, currencyId } = req.body;
+  if (!transactionId || !currencyId) {
+    return res.status(400).json({ error: 'transactionId and currencyId are required' });
+  }
 
   try {
     const tx = await db.get('SELECT * FROM transactions WHERE reference = ?', [transactionId]);
     if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+    if (tx.status !== 'INITIATED') return res.status(409).json({ error: 'Transaction already in progress' });
 
-    // Mock exchange rates
-    let exchangeRate = 1.0;
+    // If real Basqet keys are configured, call real API — otherwise simulate
+    if (process.env.BASQET_PRIVATE_KEY && process.env.BASQET_API_URL) {
+      // Real Basqet API call
+      const basqetResp = await fetch(`${process.env.BASQET_API_URL}/v1/transactions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.BASQET_PRIVATE_KEY}`
+        },
+        body: JSON.stringify({
+          reference: tx.reference,
+          amount: tx.gross_amount,
+          currency: 'NGN',
+          currency_id: currencyId,
+          customer_email: tx.customer_email,
+          customer_name: tx.customer_name
+        })
+      });
+
+      const basqetData = await basqetResp.json();
+      if (!basqetResp.ok) {
+        return res.status(basqetResp.status).json({ error: basqetData.message || 'Basqet API error' });
+      }
+
+      await db.run(
+        'UPDATE transactions SET status = ?, crypto_currency_id = ?, crypto_amount = ?, payment_address = ? WHERE reference = ?',
+        ['PAYMENT_PENDING', currencyId, basqetData.data?.payment_amount, basqetData.data?.payment_address, transactionId]
+      );
+
+      return res.json({ status: 'success', data: basqetData.data });
+    }
+
+    // Simulation fallback
     let currencyTicker = 'USDC';
-
+    let exchangeRate = 1600;
     if (currencyId === 3) { currencyTicker = 'USDT'; exchangeRate = 1600; }
     else if (currencyId === 4) { currencyTicker = 'BTC'; exchangeRate = 100000000; }
     else if (currencyId === 6) { currencyTicker = 'ETH'; exchangeRate = 5000000; }
 
     const cryptoAmount = tx.gross_amount / exchangeRate;
-    const mockAddress = `0x${cryptoTicker.toLowerCase()}__${Math.random().toString(36).substring(2, 15)}`;
+    const mockAddress = `0x${currencyTicker.toLowerCase()}_${Math.random().toString(36).substring(2, 15)}`;
 
-    // Update Transaction state in DB
     await db.run(
       'UPDATE transactions SET status = ?, crypto_currency_id = ?, crypto_amount = ?, payment_address = ? WHERE reference = ?',
       ['PAYMENT_PENDING', currencyId, cryptoAmount, mockAddress, transactionId]
@@ -163,17 +265,24 @@ app.post('/api/basqet/pay-initiate', async (req, res) => {
   }
 });
 
-// API: Simulate payment initiation on Nomba (creates mock bank transfer account details)
-app.post('/api/nomba/pay-initiate', async (req, res) => {
+// ── Nomba: initiate fiat payment ──────────────────────────────────────────
+app.post('/api/nomba/pay-initiate', paymentLimiter, async (req, res) => {
   const { transactionId } = req.body;
+  if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });
 
   try {
     const tx = await db.get('SELECT * FROM transactions WHERE reference = ?', [transactionId]);
     if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+    if (tx.status !== 'INITIATED') return res.status(409).json({ error: 'Transaction already in progress' });
 
-    const mockBankAccount = `998877${Math.floor(1000 + Math.random() * 9000)}`;
+    if (process.env.NOMBA_CLIENT_ID && process.env.NOMBA_CLIENT_SECRET) {
+      // Real Nomba checkout initiation would go here
+      // Nomba provides a hosted checkout URL for card payments
+      // For now, surface the virtual account number from Nomba API
+    }
 
-    // Update Transaction state in DB
+    // Simulation — generate a virtual account number to display in checkout
+    const mockBankAccount = `9988${Math.floor(100000 + Math.random() * 900000)}`;
     await db.run(
       "UPDATE transactions SET status = ?, payment_address = ? WHERE reference = ?",
       ['PAYMENT_PENDING', mockBankAccount, transactionId]
@@ -185,7 +294,9 @@ app.post('/api/nomba/pay-initiate', async (req, res) => {
         id: transactionId,
         reference: transactionId,
         status: 'PAYMENT_PENDING',
-        bank_account: mockBankAccount
+        bank_name: 'Nomba Microfinance Bank',
+        bank_account: mockBankAccount,
+        amount: tx.gross_amount
       }
     });
   } catch (err) {
@@ -193,78 +304,72 @@ app.post('/api/nomba/pay-initiate', async (req, res) => {
   }
 });
 
-// API: Simulated Payment Confirmation (Simulating what the Basqet webhook does internally)
-app.post('/api/basqet/confirm-simulation', async (req, res) => {
+// ── Simulation confirmations (gated behind requireAdmin for security) ───────
+app.post('/api/basqet/confirm-simulation', requireAdmin, async (req, res) => {
   const { transactionId } = req.body;
+  if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });
 
   try {
     const tx = await db.get('SELECT * FROM transactions WHERE reference = ?', [transactionId]);
     if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+    if (tx.status === 'ALLOCATED_TO_LEDGER') return res.json({ message: 'Already allocated' });
 
-    if (tx.status === 'PAYMENT_CONFIRMED' || tx.status === 'ALLOCATED_TO_LEDGER') {
-      return res.json({ message: 'Transaction already paid' });
-    }
-
-    // Set confirmed amount
     await db.run(
       'UPDATE transactions SET status = ?, confirmed_amount = ? WHERE reference = ?',
       ['PAYMENT_CONFIRMED', tx.gross_amount, transactionId]
     );
-
-    // Record purchase inside the ledger
     await ledger.recordPurchase(tx.reference, tx.gross_amount, tx.platform_id, tx.vendor_id);
 
-    res.json({
-      status: 'success',
-      message: 'Payment confirmed & allocated to ledger successfully'
-    });
+    try {
+      await sendTicketEmail(tx, tx.customer_email, tx.customer_name);
+    } catch (mailErr) {
+      console.warn('[SIM] Ticket email failed (non-fatal):', mailErr.message);
+    }
+
+    res.json({ status: 'success', message: 'Basqet payment simulated & ledger allocated' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// API: Simulated Nomba checkout payment confirmation
-app.post('/api/nomba/confirm-simulation', async (req, res) => {
+app.post('/api/nomba/confirm-simulation', requireAdmin, async (req, res) => {
   const { transactionId } = req.body;
+  if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });
 
   try {
     const tx = await db.get('SELECT * FROM transactions WHERE reference = ?', [transactionId]);
     if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+    if (tx.status === 'ALLOCATED_TO_LEDGER') return res.json({ message: 'Already allocated' });
 
-    if (tx.status === 'PAYMENT_CONFIRMED' || tx.status === 'ALLOCATED_TO_LEDGER') {
-      return res.json({ message: 'Transaction already paid' });
-    }
-
-    // Set confirmed amount
     await db.run(
       'UPDATE transactions SET status = ?, confirmed_amount = ? WHERE reference = ?',
       ['PAYMENT_CONFIRMED', tx.gross_amount, transactionId]
     );
-
-    // Record purchase inside the ledger
     await ledger.recordPurchase(tx.reference, tx.gross_amount, tx.platform_id, tx.vendor_id);
 
-    res.json({
-      status: 'success',
-      message: 'Nomba payment confirmed & allocated to ledger successfully'
-    });
+    try {
+      await sendTicketEmail(tx, tx.customer_email, tx.customer_name);
+    } catch (mailErr) {
+      console.warn('[SIM] Ticket email failed (non-fatal):', mailErr.message);
+    }
+
+    res.json({ status: 'success', message: 'Nomba payment simulated & ledger allocated' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Real webhooks
-app.post('/api/webhooks/basqet', handleBasqetWebhook);
-app.post('/api/webhooks/nomba', handleNombaWebhook);
+// ── Real webhooks (raw body captured above) ───────────────────────────────
+app.post('/api/webhooks/basqet', webhookLimiter, handleBasqetWebhook);
+app.post('/api/webhooks/nomba', webhookLimiter, handleNombaWebhook);
 
-// GATED ADMIN APIS: requireAdmin JWT validation
+// ── Admin APIs ────────────────────────────────────────────────────────────
 app.get('/api/admin/ledger', requireAdmin, async (req, res) => {
   try {
-    const accounts = await db.all('SELECT * FROM ledger_accounts');
+    const accounts = await db.all('SELECT * FROM ledger_accounts ORDER BY type, id');
     const entries = await db.all('SELECT * FROM ledger_entries ORDER BY created_at DESC LIMIT 50');
     const transactions = await db.all('SELECT * FROM transactions ORDER BY created_at DESC LIMIT 50');
     const reconciliationFlags = await db.all('SELECT * FROM reconciliation_flags ORDER BY created_at DESC');
-    
     res.json({ accounts, entries, transactions, reconciliationFlags });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -272,8 +377,9 @@ app.get('/api/admin/ledger', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/admin/batches/trigger', requireAdmin, async (req, res) => {
+  const ipAddress = req.ip || '127.0.0.1';
   try {
-    const result = await settlement.runSettlementBatch(req.admin.username);
+    const result = await settlement.runSettlementBatch(req.admin.username, ipAddress);
     res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -304,11 +410,11 @@ app.post('/api/admin/reconcile', requireAdmin, async (req, res) => {
   }
 });
 
-// ADMIN API: Approve a pending high-value payout
 app.post('/api/admin/payouts/approve', requireAdmin, async (req, res) => {
   const { payoutId } = req.body;
-  const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
+  if (!payoutId) return res.status(400).json({ error: 'payoutId is required' });
 
+  const ipAddress = req.ip || '127.0.0.1';
   try {
     const result = await settlement.approvePayout(payoutId, req.admin.username, req.admin.role, ipAddress);
     res.json(result);
@@ -317,18 +423,16 @@ app.post('/api/admin/payouts/approve', requireAdmin, async (req, res) => {
   }
 });
 
-// ADMIN API: Execute a refund request
 app.post('/api/admin/refund', requireAdmin, async (req, res) => {
   const { transactionId } = req.body;
-  const ipAddress = req.ip || req.connection.remoteAddress || '127.0.0.1';
+  if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });
 
+  const ipAddress = req.ip || '127.0.0.1';
   try {
-    // Log audit trail for refund initiation
     await db.run(
       'INSERT INTO audit_logs (username, action, details, ip_address) VALUES (?, ?, ?, ?)',
-      [req.admin.username, 'INITIATE_REFUND', `Refund requested for transaction ${transactionId}`, ipAddress]
+      [req.admin.username, 'INITIATE_REFUND', `Refund requested for ${transactionId}`, ipAddress]
     );
-
     const result = await ledger.processRefund(transactionId);
     res.json(result);
   } catch (err) {
@@ -336,11 +440,12 @@ app.post('/api/admin/refund', requireAdmin, async (req, res) => {
   }
 });
 
-// Start Database & Listen
+// ── Boot ─────────────────────────────────────────────────────────────────────
 db.initDb().then(() => {
   app.listen(PORT, () => {
-    console.log(`StableFlow marketplace backend running at http://localhost:${PORT}`);
+    console.log(`[SERVER] StableFlow running at http://localhost:${PORT}`);
   });
 }).catch((err) => {
-  console.error('Failed to init DB:', err);
+  console.error('[SERVER] Failed to init DB:', err);
+  process.exit(1);
 });

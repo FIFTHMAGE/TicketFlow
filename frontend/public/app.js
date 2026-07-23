@@ -140,8 +140,17 @@ function closeCheckout() {
 
 async function initiatePayment(currencyId) {
   activePaymentGateway = 'basqet';
-  const customerName = "Demo Customer";
-  const customerEmail = "customer@example.com";
+  const customerName = document.getElementById('checkout-customer-name').value.trim();
+  const customerEmail = document.getElementById('checkout-customer-email').value.trim();
+
+  if (!customerName || !customerEmail) {
+    alert('Please enter your name and email address to continue.');
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+    alert('Please enter a valid email address.');
+    return;
+  }
 
   try {
     const res = await fetch(`${API_BASE}/purchase`, {
@@ -181,9 +190,18 @@ async function initiatePayment(currencyId) {
 }
 
 async function initiateNombaPayment() {
-  const customerName = "Demo Customer";
-  const customerEmail = "customer@example.com";
+  const customerName = document.getElementById('checkout-customer-name').value.trim();
+  const customerEmail = document.getElementById('checkout-customer-email').value.trim();
   activePaymentGateway = 'nomba';
+
+  if (!customerName || !customerEmail) {
+    alert('Please enter your name and email address to continue.');
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+    alert('Please enter a valid email address.');
+    return;
+  }
 
   try {
     const res = await fetch(`${API_BASE}/purchase`, {
