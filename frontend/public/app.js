@@ -182,6 +182,12 @@ function openCheckout(eventId, price) {
   document.getElementById('proceed-button-container').classList.add('hidden');
   document.getElementById('checkout-status-msg').classList.add('hidden');
 
+  // Reset iframe
+  document.getElementById('nomba-iframe-container').classList.add('hidden');
+  document.getElementById('nomba-checkout-iframe').src = '';
+  document.getElementById('qr-code-box').classList.remove('hidden');
+  document.getElementById('address-container-box').classList.remove('hidden');
+
   // Clear all button selections
   document.querySelectorAll('.crypto-btn').forEach(btn => {
     btn.style.backgroundColor = '';
@@ -296,6 +302,10 @@ async function initiatePayment(currencyId) {
         qrBox.innerHTML = `<div class="mock-qr">${ticker} QR</div>`;
       }
 
+      document.getElementById('nomba-iframe-container').classList.add('hidden');
+      document.getElementById('qr-code-box').classList.remove('hidden');
+      document.getElementById('address-container-box').classList.remove('hidden');
+
       document.getElementById('checkout-title').innerText = 'Complete Payment';
       document.getElementById('checkout-step-init').classList.add('hidden');
       document.getElementById('checkout-step-pay').classList.remove('hidden');
@@ -370,18 +380,14 @@ async function initiateNombaPayment() {
       document.getElementById('checkout-price-fiat').innerText = `₦${fiatFormatted}`;
       document.getElementById('checkout-price-crypto').innerText = `Nomba Card / Bank Transfer`;
       document.getElementById('deposit-address').value = details.checkoutUrl;
-      
-      const qrBox = document.getElementById('qr-code-box');
-      qrBox.innerHTML = `
-        <div style="font-size: 13px; text-align: center; color: #fff; padding: 20px;">
-          <strong>Nomba Payment Session Initialized</strong><br/><br/>
-          Click the button below to pay securely with your Card or Bank Transfer.<br/><br/>
-          <a href="${details.checkoutUrl}" target="_blank" class="btn-primary" style="display: inline-block; padding: 10px 20px; text-decoration: none; border-radius: 6px;">Open Nomba Gateway</a>
-        </div>
-      `;
 
-      // Auto-open Nomba hosted checkout window
-      window.open(details.checkoutUrl, '_blank');
+      // Load hosted payment URL inside our inline iframe container
+      document.getElementById('nomba-checkout-iframe').src = details.checkoutUrl;
+      document.getElementById('nomba-iframe-container').classList.remove('hidden');
+
+      // Hide standard QR code and address copy inputs to keep it clean
+      document.getElementById('qr-code-box').classList.add('hidden');
+      document.getElementById('address-container-box').classList.add('hidden');
 
       document.getElementById('checkout-title').innerText = 'Complete Payment';
       document.getElementById('checkout-step-init').classList.add('hidden');
