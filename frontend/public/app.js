@@ -379,15 +379,37 @@ async function initiateNombaPayment() {
 
       document.getElementById('checkout-price-fiat').innerText = `₦${fiatFormatted}`;
       document.getElementById('checkout-price-crypto').innerText = `Nomba Card / Bank Transfer`;
-      document.getElementById('deposit-address').value = details.checkoutUrl;
 
-      // Load hosted payment URL inside our inline iframe container
-      document.getElementById('nomba-checkout-iframe').src = details.checkoutUrl;
-      document.getElementById('nomba-iframe-container').classList.remove('hidden');
+      if (details.checkoutUrl) {
+        document.getElementById('deposit-address').value = details.checkoutUrl;
 
-      // Hide standard QR code and address copy inputs to keep it clean
-      document.getElementById('qr-code-box').classList.add('hidden');
-      document.getElementById('address-container-box').classList.add('hidden');
+        // Load hosted payment URL inside our inline iframe container
+        document.getElementById('nomba-checkout-iframe').src = details.checkoutUrl;
+        document.getElementById('nomba-iframe-container').classList.remove('hidden');
+
+        // Hide standard QR code and address copy inputs to keep it clean
+        document.getElementById('qr-code-box').classList.add('hidden');
+        document.getElementById('address-container-box').classList.add('hidden');
+      } else {
+        // Fallback for simulation/mock virtual accounts details
+        document.getElementById('deposit-address').value = details.bank_account;
+
+        // Hide iframe and show virtual bank details card
+        document.getElementById('nomba-iframe-container').classList.add('hidden');
+        document.getElementById('nomba-checkout-iframe').src = '';
+        
+        document.getElementById('qr-code-box').classList.remove('hidden');
+        document.getElementById('address-container-box').classList.remove('hidden');
+        
+        const qrBox = document.getElementById('qr-code-box');
+        qrBox.innerHTML = `
+          <div style="font-size: 13px; text-align: center; color: #fff; padding: 20px; font-family: monospace; line-height: 1.6;">
+            <strong>Nomba Sandbox Checkout</strong><br/><br/>
+            Bank: ${details.bank_name || 'Nomba Bank'}<br/>
+            Account: ${details.bank_account}
+          </div>
+        `;
+      }
 
       document.getElementById('checkout-title').innerText = 'Complete Payment';
       document.getElementById('checkout-step-init').classList.add('hidden');
