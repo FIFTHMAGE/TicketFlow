@@ -278,7 +278,7 @@ app.get('/api/public-stats', async (req, res) => {
 
 // ── Checkout: initiate purchase ───────────────────────────────────────────
 // ── Checkout: convert reservation → transaction ───────────────────────────
-app.post('/api/purchase', paymentLimiter, async (req, res) => {
+app.post(['/api/purchase', '/api-v1/purchase'], paymentLimiter, async (req, res) => {
   const { eventId, customerName, customerEmail, reservationId } = req.body;
 
   if (!eventId) return res.status(400).json({ error: 'eventId is required' });
@@ -349,7 +349,7 @@ app.post('/api/purchase', paymentLimiter, async (req, res) => {
 });
 
 // ── Basqet: initiate crypto payment ──────────────────────────────────────
-app.post('/api/basqet/pay-initiate', paymentLimiter, async (req, res) => {
+app.post(['/api/basqet/pay-initiate', '/api-v1/basqet/pay-initiate'], paymentLimiter, async (req, res) => {
   const { transactionId, currencyId } = req.body;
   if (!transactionId || !currencyId) {
     return res.status(400).json({ error: 'transactionId and currencyId are required' });
@@ -426,7 +426,7 @@ app.post('/api/basqet/pay-initiate', paymentLimiter, async (req, res) => {
 });
 
 // ── Nomba: initiate fiat payment ──────────────────────────────────────────
-app.post('/api/nomba/pay-initiate', paymentLimiter, async (req, res) => {
+app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimiter, async (req, res) => {
   const { transactionId } = req.body;
   if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });
 
@@ -465,7 +465,7 @@ app.post('/api/nomba/pay-initiate', paymentLimiter, async (req, res) => {
 });
 
 // ── Simulation confirmations (gated behind requireAdmin for security) ───────
-app.post('/api/basqet/confirm-simulation', requireAdmin, async (req, res) => {
+app.post(['/api/basqet/confirm-simulation', '/api-v1/basqet/confirm-simulation'], requireAdmin, async (req, res) => {
   const { transactionId } = req.body;
   if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });
 
@@ -502,7 +502,7 @@ app.post('/api/basqet/confirm-simulation', requireAdmin, async (req, res) => {
   }
 });
 
-app.post('/api/nomba/confirm-simulation', requireAdmin, async (req, res) => {
+app.post(['/api/nomba/confirm-simulation', '/api-v1/nomba/confirm-simulation'], requireAdmin, async (req, res) => {
   const { transactionId } = req.body;
   if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });
 
