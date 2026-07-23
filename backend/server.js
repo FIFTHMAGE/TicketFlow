@@ -459,7 +459,10 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
     // Step 1: Authenticate
     const tokenResp = await fetch(`${NOMBA_BASE}/auth/token/issue`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'accountId': process.env.NOMBA_ACCOUNT_ID
+      },
       body: JSON.stringify({
         clientId: process.env.NOMBA_CLIENT_ID,
         clientSecret: process.env.NOMBA_CLIENT_SECRET,
@@ -659,7 +662,10 @@ app.post(['/api/nomba/verify', '/api-v1/nomba/verify'], async (req, res) => {
       try {
         const tokenResp = await fetch(`${NOMBA_BASE}/auth/token/issue`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'accountId': process.env.NOMBA_ACCOUNT_ID
+          },
           body: JSON.stringify({
             clientId: process.env.NOMBA_CLIENT_ID,
             clientSecret: process.env.NOMBA_CLIENT_SECRET,
