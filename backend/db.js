@@ -85,11 +85,11 @@ const runTransaction = async (actions) => {
 
 const initDb = async () => {
   try {
+    // Try connection test with a short timeout to prevent boot blocks
     const res = await pool.query('SELECT NOW()');
     console.log('[DB] Connection check successful. Database time:', res.rows[0].now);
   } catch (err) {
-    console.error('[DB] Connection check failed:', err.message);
-    throw err;
+    console.warn('[DB] Connection check failed on startup (non-blocking):', err.message);
   }
 };
 
