@@ -447,97 +447,88 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
     if (!tx) return res.status(404).json({ error: 'Transaction not found' });
     if (tx.status !== 'INITIATED') return res.status(409).json({ error: 'Transaction already in progress' });
 
-    // Real Nomba API integration
-    console.log('[NOMBA INIT] Checking env keys:', {
-      NOMBA_CLIENT_ID: process.env.NOMBA_CLIENT_ID ? 'SET' : 'MISSING',
-      NOMBA_CLIENT_SECRET: process.env.NOMBA_CLIENT_SECRET ? 'SET' : 'MISSING',
-      NOMBA_ACCOUNT_ID: process.env.NOMBA_ACCOUNT_ID ? 'SET' : 'MISSING',
-      NODE_ENV: process.env.NODE_ENV
-    });
+    // Determine base URL — use NOMBA_BASE_URL env var explicitly set on Vercel
+    // For sandbox: https://sandbox.nomba.com/v1  |  For production: https://api.nomba.com/v1
+    const NOMBA_BASE = process.env.NOMBA_BASE_URL || 'https://api.nomba.com/v1';
+    console.log('[NOMBA INIT] Using base URL:', NOMBA_BASE);
 
-    if (process.env.NOMBA_CLIENT_ID && process.env.NOMBA_CLIENT_SECRET && process.env.NOMBA_ACCOUNT_ID) {
-      try {
-        console.log('[NOMBA INIT] Attempting authentication...');
-        const tokenResp = await fetch(`${process.env.NODE_ENV === 'production' ? 'https://api.nomba.com/v1' : 'https://api.nomba.com/c/v1'}/auth/token/issue`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            clientId: process.env.NOMBA_CLIENT_ID,
-            clientSecret: process.env.NOMBA_CLIENT_SECRET,
-            grantType: 'client_credentials'
-          })
-        });
-        const tokenData = await tokenResp.json();
-        const token = tokenData.data?.access_token || tokenData.access_token;
-        console.log('[NOMBA INIT] Access Token status:', token ? 'ACQUIRED' : 'FAILED', tokenData);
-
-        if (token) {
-          console.log('[NOMBA INIT] Calling checkout/order...');
-          const checkoutResp = await fetch(`${process.env.NODE_ENV === 'production' ? 'https://api.nomba.com/v1' : 'https://api.nomba.com/c/v1'}/checkout/order`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-              'accountId': process.env.NOMBA_ACCOUNT_ID
-            },
-            body: JSON.stringify({
-              order: {
-                amount: tx.gross_amount.toString(),
-                currency: 'NGN',
-                orderReference: tx.reference,
-                callbackUrl: `https://${req.headers.host || 'ticket-flow-drab.vercel.app'}/api-v1/nomba/callback`,
-                customerEmail: tx.customer_email,
-                customerId: tx.customer_email,
-                allowedPaymentMethods: ['Card', 'Transfer']
-              }
-            })
-          });
-
-          const checkoutData = await checkoutResp.json();
-          console.log('[NOMBA INIT] checkout/order response status:', checkoutResp.status, checkoutData);
-          if (checkoutResp.ok && checkoutData.code === '00') {
-            const details = checkoutData.data;
-            await db.run(
-              "UPDATE transactions SET status = ?, payment_address = ? WHERE reference = ?",
-              ['PAYMENT_PENDING', details.checkoutLink, transactionId]
-            );
-
-            return res.json({
-              status: 'success',
-              data: {
-                id: transactionId,
-                reference: transactionId,
-                status: 'PAYMENT_PENDING',
-                checkoutUrl: details.checkoutLink,
-                amount: tx.gross_amount
-              }
-            });
-          }
-        }
-      } catch (err) {
-        console.error('[NOMBA PAY-INITIATE ERROR]', err);
-      }
+    if (!process.env.NOMBA_CLIENT_ID || !process.env.NOMBA_CLIENT_SECRET || !process.env.NOMBA_ACCOUNT_ID) {
+      return res.status(500).json({ error: 'Nomba API credentials are not configured on this server.' });
     }
 
-    // Simulation fallback
-    const mockBankAccount = `9988${Math.floor(100000 + Math.random() * 900000)}`;
+    // Step 1: Authenticate
+    const tokenResp = await fetch(`${NOMBA_BASE}/auth/token/issue`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientId: process.env.NOMBA_CLIENT_ID,
+        clientSecret: process.env.NOMBA_CLIENT_SECRET,
+        grantType: 'client_credentials'
+      })
+    });
+    const tokenData = await tokenResp.json();
+    const token = tokenData.data?.access_token || tokenData.access_token;
+    console.log('[NOMBA INIT] Token result:', token ? 'ACQUIRED' : 'FAILED', JSON.stringify(tokenData));
+
+    if (!token) {
+      return res.status(502).json({ error: `Nomba authentication failed: ${JSON.stringify(tokenData)}` });
+    }
+
+    // Step 2: Create checkout order
+    const callbackUrl = `https://${req.headers.host || 'ticket-flow-drab.vercel.app'}/api-v1/nomba/callback`;
+    const checkoutBody = {
+      order: {
+        amount: parseFloat(tx.gross_amount).toFixed(2),
+        currency: 'NGN',
+        orderReference: tx.reference,
+        callbackUrl,
+        customerEmail: tx.customer_email,
+        customerId: tx.customer_email,
+        allowedPaymentMethods: ['Card', 'Transfer', 'USSD', 'Nomba QR']
+      }
+    };
+    console.log('[NOMBA INIT] checkout/order payload:', JSON.stringify(checkoutBody));
+
+    const checkoutResp = await fetch(`${NOMBA_BASE}/checkout/order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'accountId': process.env.NOMBA_ACCOUNT_ID
+      },
+      body: JSON.stringify(checkoutBody)
+    });
+
+    const checkoutData = await checkoutResp.json();
+    console.log('[NOMBA INIT] checkout/order response:', checkoutResp.status, JSON.stringify(checkoutData));
+
+    if (!checkoutResp.ok || checkoutData.code !== '00') {
+      return res.status(502).json({ error: `Nomba checkout/order failed: ${JSON.stringify(checkoutData)}` });
+    }
+
+    const checkoutLink = checkoutData.data?.checkoutLink;
+    if (!checkoutLink) {
+      return res.status(502).json({ error: 'Nomba returned no checkoutLink in response' });
+    }
+
     await db.run(
       "UPDATE transactions SET status = ?, payment_address = ? WHERE reference = ?",
-      ['PAYMENT_PENDING', mockBankAccount, transactionId]
+      ['PAYMENT_PENDING', checkoutLink, transactionId]
     );
 
-    res.json({
+    return res.json({
       status: 'success',
       data: {
         id: transactionId,
         reference: transactionId,
         status: 'PAYMENT_PENDING',
-        bank_name: 'Nomba Microfinance Bank',
-        bank_account: mockBankAccount,
+        checkoutUrl: checkoutLink,
         amount: tx.gross_amount
       }
     });
+
   } catch (err) {
+    console.error('[NOMBA PAY-INITIATE FATAL]', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -662,10 +653,11 @@ app.post(['/api/nomba/verify', '/api-v1/nomba/verify'], async (req, res) => {
       return res.json({ status: 'success', message: 'Payment confirmed and ledger credited' });
     }
 
-    // Real Nomba check
+    const NOMBA_BASE = process.env.NOMBA_BASE_URL || 'https://api.nomba.com/v1';
+
     if (process.env.NOMBA_CLIENT_ID && process.env.NOMBA_CLIENT_SECRET && process.env.NOMBA_ACCOUNT_ID) {
       try {
-        const tokenResp = await fetch(`${process.env.NODE_ENV === 'production' ? 'https://api.nomba.com/v1' : 'https://api.nomba.com/c/v1'}/auth/token/issue`, {
+        const tokenResp = await fetch(`${NOMBA_BASE}/auth/token/issue`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -678,8 +670,11 @@ app.post(['/api/nomba/verify', '/api-v1/nomba/verify'], async (req, res) => {
         const token = tokenData.data?.access_token || tokenData.access_token;
 
         if (token) {
-          // Get transaction status by merchant reference
-          const statusResp = await fetch(`${process.env.NODE_ENV === 'production' ? 'https://api.nomba.com/v1' : 'https://api.nomba.com/c/v1'}/transactions/merchant/${transactionId}`, {
+          // Verify via /v1/transactions/accounts/single?orderReference= per Nomba docs
+          const verifyUrl = new URL(`${NOMBA_BASE}/transactions/accounts/single`);
+          verifyUrl.searchParams.set('orderReference', transactionId);
+
+          const statusResp = await fetch(verifyUrl.toString(), {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -688,25 +683,24 @@ app.post(['/api/nomba/verify', '/api-v1/nomba/verify'], async (req, res) => {
           });
 
           const statusData = await statusResp.json();
+          console.log('[NOMBA VERIFY] status response:', statusResp.status, JSON.stringify(statusData));
+
           if (statusResp.ok && statusData.code === '00') {
-            const status = statusData.data?.status; // e.g. "SUCCESS", "PENDING"
-            if (status === 'SUCCESS' || status === 'SUCCESSFUL') {
+            const txStatus = statusData.data?.status;
+            if (txStatus === 'SUCCESS' || txStatus === 'SUCCESSFUL') {
               await db.run(
                 'UPDATE transactions SET status = ?, confirmed_amount = ? WHERE reference = ?',
                 ['PAYMENT_CONFIRMED', tx.gross_amount, transactionId]
               );
               await ledger.recordPurchase(tx.reference, tx.gross_amount, tx.platform_id, tx.vendor_id);
-              // Convert reservation
               try {
                 const reservation = await db.get('SELECT id FROM reservations WHERE transaction_id = ?', [transactionId]);
                 if (reservation) await reservations.convertReservation(reservation.id);
               } catch (e) {}
-              
               try {
                 await sendTicketEmail(tx, tx.customer_email, tx.customer_name);
               } catch (mailErr) {}
-
-              return res.json({ status: 'success', message: 'Payment confirmed' });
+              return res.json({ status: 'success', message: 'Payment confirmed!' });
             }
           }
         }
@@ -715,7 +709,7 @@ app.post(['/api/nomba/verify', '/api-v1/nomba/verify'], async (req, res) => {
       }
     }
 
-    return res.json({ status: 'pending', message: 'No payment detected yet. Please complete the bank transfer.' });
+    return res.json({ status: 'pending', message: 'Payment not yet received. Please wait a moment and try again.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
