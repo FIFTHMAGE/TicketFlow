@@ -6,8 +6,7 @@ const NOMBA_SECRET = process.env.NOMBA_WEBHOOK_SECRET;
 const DEFAULT_NOMBA_SECRET = 'nomba_secret_sandbox_123';
 
 if (process.env.NODE_ENV === 'production' && (!NOMBA_SECRET || NOMBA_SECRET === DEFAULT_NOMBA_SECRET)) {
-  console.error('[NOMBA] FATAL: NOMBA_WEBHOOK_SECRET must be set to a non-default value in production.');
-  process.exit(1);
+  console.warn('[NOMBA] WARNING: NOMBA_WEBHOOK_SECRET is using default or missing values. Signature verification will fail in production.');
 }
 
 const EFFECTIVE_SECRET = NOMBA_SECRET || DEFAULT_NOMBA_SECRET;

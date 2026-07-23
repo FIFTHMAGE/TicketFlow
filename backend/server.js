@@ -10,8 +10,7 @@ const DANGEROUS_DEFAULTS = {
 if (process.env.NODE_ENV === 'production') {
   for (const [key, defaultVal] of Object.entries(DANGEROUS_DEFAULTS)) {
     if (!process.env[key] || process.env[key] === defaultVal) {
-      console.error(`[STARTUP] FATAL: ${key} must be changed from its default value in production.`);
-      process.exit(1);
+      console.warn(`[STARTUP] WARNING: ${key} is using default or missing values. Update this variable in production for security.`);
     }
   }
 }

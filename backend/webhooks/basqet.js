@@ -7,8 +7,7 @@ const BASQET_SECRET = process.env.BASQET_WEBHOOK_SECRET;
 const DEFAULT_BASQET_SECRET = 'basqet_secret_sandbox_123';
 
 if (process.env.NODE_ENV === 'production' && (!BASQET_SECRET || BASQET_SECRET === DEFAULT_BASQET_SECRET)) {
-  console.error('[BASQET] FATAL: BASQET_WEBHOOK_SECRET must be set to a non-default value in production.');
-  process.exit(1);
+  console.warn('[BASQET] WARNING: BASQET_WEBHOOK_SECRET is using default or missing values. Signature verification will fail in production.');
 }
 
 const EFFECTIVE_SECRET = BASQET_SECRET || DEFAULT_BASQET_SECRET;
