@@ -18,22 +18,35 @@ window.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
   const status = urlParams.get('status');
   const ref = urlParams.get('ref');
-  if (status === 'success' && ref) {
-    // Open checkout modal in verified state
-    activeTransactionId = ref;
-    activePaymentGateway = 'nomba';
-    
+  if (ref) {
     // Clear URL parameters so reloading doesn't loop
     window.history.replaceState({}, document.title, window.location.pathname);
     
-    // Open modal directly on the payment success message screen
-    document.getElementById('checkout-modal').classList.add('active');
-    document.getElementById('checkout-step-init').classList.add('hidden');
-    document.getElementById('checkout-step-pay').classList.remove('hidden');
-    document.getElementById('checkout-title').innerText = 'Payment Confirmed';
-    
-    // Auto-verify status
-    checkPaymentStatus();
+    if (status === 'success') {
+      activeTransactionId = ref;
+      activePaymentGateway = 'nomba';
+      
+      // Open modal directly on the payment success message screen
+      document.getElementById('checkout-modal').classList.add('active');
+      document.getElementById('checkout-step-init').classList.add('hidden');
+      document.getElementById('checkout-step-pay').classList.remove('hidden');
+      document.getElementById('checkout-title').innerText = 'Payment Confirmed';
+      
+      // Auto-verify status
+      checkPaymentStatus();
+    } else if (status === 'cancel') {
+      // Re-initialize modal on selecting payment methods
+      document.getElementById('checkout-modal').classList.add('active');
+      document.getElementById('checkout-step-init').classList.remove('hidden');
+      document.getElementById('checkout-step-pay').classList.add('hidden');
+      document.getElementById('proceed-button-container').classList.add('hidden');
+      document.getElementById('checkout-title').innerText = 'Select Payment Method';
+      
+      // Surface status alert
+      showCheckoutStatus('Payment cancelled or incomplete. Please try again.', 'error');
+      // Position error message container cleanly inside initialization view
+      document.getElementById('checkout-step-init').prepend(document.getElementById('checkout-status-msg'));
+    }
   }
 });
 
@@ -339,6 +352,9 @@ function openCheckout(eventId, price) {
   document.getElementById('proceed-button-container').classList.add('hidden');
   document.getElementById('checkout-status-msg').classList.add('hidden');
 
+  // Put status message box back to its default layout location under step-pay
+  document.getElementById('checkout-step-pay').prepend(document.getElementById('checkout-status-msg'));
+
   // Reset iframe
   document.getElementById('nomba-iframe-container').classList.add('hidden');
   document.getElementById('nomba-checkout-iframe').src = '';
@@ -512,6 +528,11 @@ async function initiateNombaPayment() {
   document.getElementById('checkout-step-init').classList.add('hidden');
   document.getElementById('checkout-step-pay').classList.remove('hidden');
   document.getElementById('checkout-title').innerText = 'Complete Payment';
+
+  // Hide elements to prevent blank placeholder flash while loading
+  document.getElementById('qr-code-box').classList.add('hidden');
+  document.getElementById('address-container-box').classList.add('hidden');
+  document.getElementById('nomba-iframe-container').classList.add('hidden');
 
   try {
     // 1. Reserve the ticket first

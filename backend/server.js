@@ -587,8 +587,56 @@ app.get(['/api/nomba/callback', '/api-v1/nomba/callback'], async (req, res) => {
       return res.status(404).send('Transaction not found.');
     }
 
-    // Redirect the customer back to the checkout UI with a success state
-    return res.redirect(`/index.html?ref=${orderReference}&status=success`);
+    // Determine status from Nomba's API if possible
+    let isPaid = false;
+    const NOMBA_BASE = process.env.NOMBA_BASE_URL || 'https://api.nomba.com/v1';
+    if (process.env.NOMBA_CLIENT_ID && process.env.NOMBA_CLIENT_SECRET && process.env.NOMBA_ACCOUNT_ID) {
+      try {
+        const tokenResp = await fetch(`${NOMBA_BASE}/auth/token/issue`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'accountId': process.env.NOMBA_ACCOUNT_ID
+          },
+          body: JSON.stringify({
+            clientId: process.env.NOMBA_CLIENT_ID,
+            clientSecret: process.env.NOMBA_CLIENT_SECRET,
+            grantType: 'client_credentials'
+          })
+        });
+        const tokenData = await tokenResp.json();
+        const token = tokenData.data?.access_token || tokenData.access_token;
+        if (token) {
+          const verifyUrl = new URL(`${NOMBA_BASE}/transactions/accounts/single`);
+          verifyUrl.searchParams.set('orderReference', orderReference);
+
+          const statusResp = await fetch(verifyUrl.toString(), {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'accountId': process.env.NOMBA_ACCOUNT_ID
+            }
+          });
+          const statusData = await statusResp.json();
+          if (statusResp.ok && statusData.code === '00') {
+            const txStatus = statusData.data?.status;
+            if (txStatus === 'SUCCESS' || txStatus === 'SUCCESSFUL') {
+              isPaid = true;
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[NOMBA CALLBACK VERIFY ERROR]', err);
+      }
+    }
+
+    if (isPaid) {
+      return res.redirect(`/index.html?ref=${orderReference}&status=success`);
+    } else {
+      // Revert transaction state back to INITIATED so they can try again
+      await db.run("UPDATE transactions SET status = 'INITIATED' WHERE reference = ?", [orderReference]);
+      return res.redirect(`/index.html?ref=${orderReference}&status=cancel`);
+    }
   } catch (err) {
     console.error('[NOMBA CALLBACK ERROR]', err);
     return res.status(500).send('Internal server error.');
