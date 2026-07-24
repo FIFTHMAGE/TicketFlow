@@ -39,8 +39,8 @@ window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('address-container-box').classList.add('hidden');
       document.getElementById('nomba-iframe-container').classList.add('hidden');
       
-      // Auto-verify status
-      checkPaymentStatus();
+      // Auto-render the ticket view immediately to eliminate redirect delays
+      showSuccessTicketView();
     } else if (status === 'cancel') {
       // Re-initialize modal on selecting payment methods
       document.getElementById('checkout-modal').classList.add('active');
@@ -716,85 +716,7 @@ async function checkPaymentStatus() {
     const data = await res.json();
     
     if (data.status === 'success') {
-      showCheckoutStatus(`Payment Confirmed!`, 'success');
-      
-      // Stop the reservation hold timer since order is complete
-      if (countdownInterval) clearInterval(countdownInterval);
-      const timerBanner = document.getElementById('reservation-timer-banner');
-      if (timerBanner) {
-        timerBanner.style.setProperty('display', 'none', 'important');
-        timerBanner.style.display = 'none';
-      }
-
-      // Hide both step views completely to prevent double cards
-      document.getElementById('checkout-step-init').classList.add('hidden');
-      document.getElementById('checkout-step-pay').classList.add('hidden');
-      document.getElementById('checkout-status-msg').classList.add('hidden');
-
-      // Update the main modal header title
-      const titleEl = document.getElementById('checkout-title');
-      if (titleEl) {
-        titleEl.innerText = 'Ticket Issued';
-        titleEl.style.display = 'block';
-      }
-
-      // Hide the Back button on success
-      const backBtn = document.getElementById('checkout-back-btn');
-      if (backBtn) backBtn.style.setProperty('display', 'none', 'important');
-
-      // Scroll card to top for clean viewport alignment
-      const card = document.querySelector('.checkout-card');
-      if (card) card.scrollTop = 0;
-
-      // Render the ticket details directly inside the main checkout-body container
-      let ticketDisplay = document.getElementById('checkout-success-ticket-view');
-      if (!ticketDisplay) {
-        ticketDisplay = document.createElement('div');
-        ticketDisplay.id = 'checkout-success-ticket-view';
-        document.querySelector('.checkout-body').appendChild(ticketDisplay);
-      }
-
-      ticketDisplay.innerHTML = `
-        <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
-          <div style="width: 100%; text-align: center; background: rgba(146, 203, 60, 0.08); border: 1px solid var(--green); border-radius: 8px; padding: 12px; margin-bottom: 20px; color: #92cb3c; font-size: 0.9rem; font-weight: 600;">
-            ✦ Payment Confirmed!
-          </div>
-          <div id="success-qr-box" style="margin-bottom: 20px; display: flex; justify-content: center; width: 100%;">
-            <canvas id="ticket-qr-canvas" style="border-radius: 8px; background: #fff; padding: 12px;"></canvas>
-          </div>
-          <div style="font-family: monospace; font-size: 0.82rem; color: var(--sand); text-align: center; line-height: 1.5; width: 100%;">
-            Ticket Reference:<br/>
-            <strong style="color: var(--green); font-size: 0.95rem; display: block; margin: 4px 0 12px 0;">${activeTransactionId}</strong>
-            <p style="font-size: 0.75rem; color: var(--off-white); opacity: 0.8; max-width: 320px; margin: 0 auto;">A copy of this ticket with access pass details has been sent to your email.</p>
-          </div>
-          <button class="btn-primary" style="width: 100%; padding: 14px; margin-top: 24px;" onclick="closeSuccessScreen()">Close & Exit</button>
-        </div>
-      `;
-
-      // Dynamically load the client-side QRCode library if not loaded
-      if (typeof QRCode === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js';
-        script.onload = () => {
-          const canvas = document.getElementById('ticket-qr-canvas');
-          if (canvas) {
-            QRCode.toCanvas(canvas, activeTransactionId, { width: 180, margin: 1 }, (err) => {
-              if (err) console.error('[CLIENT QR ERROR]', err);
-            });
-          }
-        };
-        document.head.appendChild(script);
-      } else {
-        const canvas = document.getElementById('ticket-qr-canvas');
-        if (canvas) {
-          QRCode.toCanvas(canvas, activeTransactionId, { width: 180, margin: 1 }, (err) => {
-            if (err) console.error('[CLIENT QR ERROR]', err);
-          });
-        }
-      }
-
-      activeReservationId = null;
-      loadPublicStats();
+      showSuccessTicketView();
     } else {
       // Show pending check details returned by server in custom message box
       showCheckoutStatus(data.message || 'Payment verification is pending. Please wait.', 'pending');
@@ -803,6 +725,88 @@ async function checkPaymentStatus() {
     console.error('Error verifying payment:', err);
     showCheckoutStatus('Verification check failed. Please try again.', 'error');
   }
+}
+
+function showSuccessTicketView() {
+  showCheckoutStatus(`Payment Confirmed!`, 'success');
+  
+  // Stop the reservation hold timer since order is complete
+  if (countdownInterval) clearInterval(countdownInterval);
+  const timerBanner = document.getElementById('reservation-timer-banner');
+  if (timerBanner) {
+    timerBanner.style.setProperty('display', 'none', 'important');
+    timerBanner.style.display = 'none';
+  }
+
+  // Hide both step views completely to prevent double cards
+  document.getElementById('checkout-step-init').classList.add('hidden');
+  document.getElementById('checkout-step-pay').classList.add('hidden');
+  document.getElementById('checkout-status-msg').classList.add('hidden');
+
+  // Update the main modal header title
+  const titleEl = document.getElementById('checkout-title');
+  if (titleEl) {
+    titleEl.innerText = 'Ticket Issued';
+    titleEl.style.display = 'block';
+  }
+
+  // Hide the Back button on success
+  const backBtn = document.getElementById('checkout-back-btn');
+  if (backBtn) backBtn.style.setProperty('display', 'none', 'important');
+
+  // Scroll card to top for clean viewport alignment
+  const card = document.querySelector('.checkout-card');
+  if (card) card.scrollTop = 0;
+
+  // Render the ticket details directly inside the main checkout-body container
+  let ticketDisplay = document.getElementById('checkout-success-ticket-view');
+  if (!ticketDisplay) {
+    ticketDisplay = document.createElement('div');
+    ticketDisplay.id = 'checkout-success-ticket-view';
+    document.querySelector('.checkout-body').appendChild(ticketDisplay);
+  }
+
+  ticketDisplay.innerHTML = `
+    <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+      <div style="width: 100%; text-align: center; background: rgba(146, 203, 60, 0.08); border: 1px solid var(--green); border-radius: 8px; padding: 12px; margin-bottom: 20px; color: #92cb3c; font-size: 0.9rem; font-weight: 600;">
+        ✦ Payment Confirmed!
+      </div>
+      <div id="success-qr-box" style="margin-bottom: 20px; display: flex; justify-content: center; width: 100%;">
+        <canvas id="ticket-qr-canvas" style="border-radius: 8px; background: #fff; padding: 12px;"></canvas>
+      </div>
+      <div style="font-family: monospace; font-size: 0.82rem; color: var(--sand); text-align: center; line-height: 1.5; width: 100%;">
+        Ticket Reference:<br/>
+        <strong style="color: var(--green); font-size: 0.95rem; display: block; margin: 4px 0 12px 0;">${activeTransactionId}</strong>
+        <p style="font-size: 0.75rem; color: var(--off-white); opacity: 0.8; max-width: 320px; margin: 0 auto;">A copy of this ticket with access pass details has been sent to your email.</p>
+      </div>
+      <button class="btn-primary" style="width: 100%; padding: 14px; margin-top: 24px;" onclick="closeSuccessScreen()">Close & Exit</button>
+    </div>
+  `;
+
+  // Dynamically load the client-side QRCode library if not loaded
+  if (typeof QRCode === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js';
+    script.onload = () => {
+      const canvas = document.getElementById('ticket-qr-canvas');
+      if (canvas) {
+        QRCode.toCanvas(canvas, activeTransactionId, { width: 180, margin: 1 }, (err) => {
+          if (err) console.error('[CLIENT QR ERROR]', err);
+        });
+      }
+    };
+    document.head.appendChild(script);
+  } else {
+    const canvas = document.getElementById('ticket-qr-canvas');
+    if (canvas) {
+      QRCode.toCanvas(canvas, activeTransactionId, { width: 180, margin: 1 }, (err) => {
+        if (err) console.error('[CLIENT QR ERROR]', err);
+      });
+    }
+  }
+
+  activeReservationId = null;
+  loadPublicStats();
 }
 
 function drawTicketQR(reference) {
