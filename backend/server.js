@@ -207,7 +207,7 @@ app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (
     return res.status(400).json({ error: 'bankName and accountNumber are required' });
   }
 
-  // Official NIP / CBN Bank Codes for Nigerian Banks
+  // Common NIP / CBN Bank Codes for Nigerian Banks
   const BANK_CODES = {
     'Access Bank': '044',
     'First Bank': '011',
@@ -225,7 +225,7 @@ app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (
     const NOMBA_BASE = process.env.NOMBA_BASE_URL || 'https://api.nomba.com/v1';
 
     if (process.env.NOMBA_CLIENT_ID && process.env.NOMBA_CLIENT_SECRET && process.env.NOMBA_ACCOUNT_ID) {
-      // 1. Authenticate with Nomba
+      // 1. Issue access token
       const tokenResp = await fetch(`${NOMBA_BASE}/auth/token/issue`, {
         method: 'POST',
         headers: {
@@ -242,8 +242,29 @@ app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (
       const token = tokenData.data?.access_token || tokenData.access_token;
 
       if (token) {
-        const bankCode = BANK_CODES[bankName] || bankName;
-        // 2. Query account lookup from Nomba API
+        let bankCode = BANK_CODES[bankName] || bankName;
+
+        // If bankCode is not a numeric code, attempt to fetch dynamic bank list from GET /v1/transfers/banks
+        if (isNaN(bankCode)) {
+          try {
+            const banksResp = await fetch(`${NOMBA_BASE}/transfers/banks`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'accountId': process.env.NOMBA_ACCOUNT_ID
+              }
+            });
+            const banksData = await banksResp.json();
+            if (banksResp.ok && Array.isArray(banksData.data)) {
+              const found = banksData.data.find(b => b.name?.toLowerCase().includes(bankName.toLowerCase()));
+              if (found?.code) bankCode = found.code;
+            }
+          } catch (e) {
+            console.warn('[NOMBA BANKS FETCH WARNING]', e.message);
+          }
+        }
+
+        // 2. Perform bank account lookup per Nomba specification (POST /v1/transfers/bank/lookup)
         const lookupResp = await fetch(`${NOMBA_BASE}/transfers/bank/lookup`, {
           method: 'POST',
           headers: {
@@ -258,19 +279,24 @@ app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (
         });
 
         const lookupData = await lookupResp.json();
-        console.log('[NOMBA BANK LOOKUP]', lookupResp.status, JSON.stringify(lookupData));
+        console.log('[NOMBA BANK LOOKUP RESPONSE]', lookupResp.status, JSON.stringify(lookupData));
 
-        if (lookupResp.ok && (lookupData.data?.accountName || lookupData.accountName)) {
-          const name = lookupData.data?.accountName || lookupData.accountName;
-          return res.json({ status: 'success', data: { accountName: name } });
+        if (lookupData.code === '00' && lookupData.data?.accountName) {
+          return res.json({
+            status: 'success',
+            data: {
+              accountNumber: lookupData.data.accountNumber || accountNumber,
+              accountName: lookupData.data.accountName
+            }
+          });
         }
       }
     }
 
-    // Return resolution failure so client lets user type manually
+    // Resolution failed or sandbox mode -> return 404 to let user fill account name manually
     return res.status(404).json({
       status: 'error',
-      error: 'Account name could not be automatically resolved. Please enter account name manually.'
+      error: 'Account lookup failed — check account number and bank'
     });
   } catch (err) {
     console.error('[NOMBA RESOLVE ACCOUNT ERROR]', err);
