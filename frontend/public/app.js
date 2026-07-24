@@ -455,15 +455,20 @@ async function initiateNombaPayment() {
   activePaymentGateway = 'nomba';
 
   if (!customerName || !customerEmail) {
-    alert('Please enter your name and email address to continue.');
+    showCheckoutStatus('Please enter your name and email address to continue.', 'error');
     return;
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
-    alert('Please enter a valid email address.');
+    showCheckoutStatus('Please enter a valid email address.', 'error');
     return;
   }
 
   setProceedButtonLoading(true);
+
+  // Switch to payment step early so inline status messages are visible
+  document.getElementById('checkout-step-init').classList.add('hidden');
+  document.getElementById('checkout-step-pay').classList.remove('hidden');
+  document.getElementById('checkout-title').innerText = 'Complete Payment';
 
   try {
     // 1. Reserve the ticket first
@@ -475,7 +480,7 @@ async function initiateNombaPayment() {
       });
       const resData = await resVal.json();
       if (!resVal.ok) {
-        alert(resData.error || 'Failed to reserve ticket');
+        showCheckoutStatus(resData.error || 'Failed to reserve ticket. Please try again.', 'error');
         return;
       }
       activeReservationId = resData.reservationId;
@@ -493,6 +498,8 @@ async function initiateNombaPayment() {
     
     activeTransactionId = transaction.id;
 
+    showCheckoutStatus('Connecting to Nomba checkout...', 'pending');
+
     const payRes = await fetch(`${API_BASE}/nomba/pay-initiate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -509,27 +516,21 @@ async function initiateNombaPayment() {
       document.getElementById('checkout-price-fiat').innerText = `₦${fiatFormatted}`;
       document.getElementById('checkout-price-crypto').innerText = `Nomba Card / Bank Transfer`;
 
+      // Hide the connecting message
+      document.getElementById('checkout-status-msg').classList.add('hidden');
+
       if (details.checkoutUrl) {
         document.getElementById('deposit-address').value = details.checkoutUrl;
-
-        // Load hosted payment URL inside our inline iframe container
         document.getElementById('nomba-checkout-iframe').src = details.checkoutUrl;
         document.getElementById('nomba-iframe-container').classList.remove('hidden');
-
-        // Hide standard QR code and address copy inputs to keep it clean
         document.getElementById('qr-code-box').classList.add('hidden');
         document.getElementById('address-container-box').classList.add('hidden');
       } else {
-        // Fallback for simulation/mock virtual accounts details
         document.getElementById('deposit-address').value = details.bank_account;
-
-        // Hide iframe and show virtual bank details card
         document.getElementById('nomba-iframe-container').classList.add('hidden');
         document.getElementById('nomba-checkout-iframe').src = '';
-        
         document.getElementById('qr-code-box').classList.remove('hidden');
         document.getElementById('address-container-box').classList.remove('hidden');
-        
         const qrBox = document.getElementById('qr-code-box');
         qrBox.innerHTML = `
           <div style="font-size: 13px; text-align: center; color: #fff; padding: 20px; font-family: monospace; line-height: 1.6;">
@@ -539,16 +540,15 @@ async function initiateNombaPayment() {
           </div>
         `;
       }
-
-      document.getElementById('checkout-title').innerText = 'Complete Payment';
-      document.getElementById('checkout-step-init').classList.add('hidden');
-      document.getElementById('checkout-step-pay').classList.remove('hidden');
     } else {
-      alert(payData.error || 'Failed to initialize Nomba payment');
+      // Show the real server error inline so we can debug
+      const errMsg = payData.error || 'Failed to initialize Nomba payment';
+      showCheckoutStatus(`❌ ${errMsg}`, 'error');
+      console.error('[NOMBA PAY-INITIATE]', errMsg);
     }
   } catch (err) {
     console.error('Error initiating Nomba checkout:', err);
-    alert('Failed to initialize checkout session');
+    showCheckoutStatus(`❌ Network error: ${err.message}`, 'error');
   } finally {
     setProceedButtonLoading(false);
   }
