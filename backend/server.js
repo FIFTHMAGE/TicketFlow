@@ -200,6 +200,84 @@ app.post('/api/vendor/resend-verification', authLimiter, async (req, res) => {
   res.json({ status: 'success', message: 'Verification email resent if account exists.' });
 });
 
+// ── Nomba: resolve bank account name ─────────────────────────────────────
+app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (req, res) => {
+  const { bankName, accountNumber } = req.query;
+  if (!bankName || !accountNumber) {
+    return res.status(400).json({ error: 'bankName and accountNumber are required' });
+  }
+
+  // Official NIP / CBN Bank Codes for Nigerian Banks
+  const BANK_CODES = {
+    'Access Bank': '044',
+    'First Bank': '011',
+    'GTBank': '058',
+    'Kuda Bank': '50211',
+    'Opay': '999992',
+    'Palmpay': '999991',
+    'UBA': '033',
+    'Wema Bank': '035',
+    'Zenith Bank': '057',
+    'Moniepoint': '50515'
+  };
+
+  try {
+    const NOMBA_BASE = process.env.NOMBA_BASE_URL || 'https://api.nomba.com/v1';
+
+    if (process.env.NOMBA_CLIENT_ID && process.env.NOMBA_CLIENT_SECRET && process.env.NOMBA_ACCOUNT_ID) {
+      // 1. Authenticate with Nomba
+      const tokenResp = await fetch(`${NOMBA_BASE}/auth/token/issue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'accountId': process.env.NOMBA_ACCOUNT_ID
+        },
+        body: JSON.stringify({
+          clientId: process.env.NOMBA_CLIENT_ID,
+          clientSecret: process.env.NOMBA_CLIENT_SECRET,
+          grantType: 'client_credentials'
+        })
+      });
+      const tokenData = await tokenResp.json();
+      const token = tokenData.data?.access_token || tokenData.access_token;
+
+      if (token) {
+        const bankCode = BANK_CODES[bankName] || bankName;
+        // 2. Query account lookup from Nomba API
+        const lookupResp = await fetch(`${NOMBA_BASE}/transfers/bank/lookup`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'accountId': process.env.NOMBA_ACCOUNT_ID
+          },
+          body: JSON.stringify({
+            accountNumber,
+            bankCode
+          })
+        });
+
+        const lookupData = await lookupResp.json();
+        console.log('[NOMBA BANK LOOKUP]', lookupResp.status, JSON.stringify(lookupData));
+
+        if (lookupResp.ok && (lookupData.data?.accountName || lookupData.accountName)) {
+          const name = lookupData.data?.accountName || lookupData.accountName;
+          return res.json({ status: 'success', data: { accountName: name } });
+        }
+      }
+    }
+
+    // Return resolution failure so client lets user type manually
+    return res.status(404).json({
+      status: 'error',
+      error: 'Account name could not be automatically resolved. Please enter account name manually.'
+    });
+  } catch (err) {
+    console.error('[NOMBA RESOLVE ACCOUNT ERROR]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Vendor Login ─────────────────────────────────────────────────────────────
 app.post('/api/vendor/login', authLimiter, async (req, res) => {
   const { email, password } = req.body;
@@ -663,84 +741,6 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
     });
   } catch (err) {
     console.error('[NOMBA PAY-INITIATE ERROR]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ── Nomba: resolve bank account name ─────────────────────────────────────
-app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (req, res) => {
-  const { bankName, accountNumber } = req.query;
-  if (!bankName || !accountNumber) {
-    return res.status(400).json({ error: 'bankName and accountNumber are required' });
-  }
-
-  // Official NIP / CBN Bank Codes for Nigerian Banks
-  const BANK_CODES = {
-    'Access Bank': '044',
-    'First Bank': '011',
-    'GTBank': '058',
-    'Kuda Bank': '50211',
-    'Opay': '999992',
-    'Palmpay': '999991',
-    'UBA': '033',
-    'Wema Bank': '035',
-    'Zenith Bank': '057',
-    'Moniepoint': '50515'
-  };
-
-  try {
-    const NOMBA_BASE = process.env.NOMBA_BASE_URL || 'https://api.nomba.com/v1';
-
-    if (process.env.NOMBA_CLIENT_ID && process.env.NOMBA_CLIENT_SECRET && process.env.NOMBA_ACCOUNT_ID) {
-      // 1. Authenticate with Nomba
-      const tokenResp = await fetch(`${NOMBA_BASE}/auth/token/issue`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'accountId': process.env.NOMBA_ACCOUNT_ID
-        },
-        body: JSON.stringify({
-          clientId: process.env.NOMBA_CLIENT_ID,
-          clientSecret: process.env.NOMBA_CLIENT_SECRET,
-          grantType: 'client_credentials'
-        })
-      });
-      const tokenData = await tokenResp.json();
-      const token = tokenData.data?.access_token || tokenData.access_token;
-
-      if (token) {
-        const bankCode = BANK_CODES[bankName] || bankName;
-        // 2. Query account lookup from Nomba API
-        const lookupResp = await fetch(`${NOMBA_BASE}/transfers/bank/lookup`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'accountId': process.env.NOMBA_ACCOUNT_ID
-          },
-          body: JSON.stringify({
-            accountNumber,
-            bankCode
-          })
-        });
-
-        const lookupData = await lookupResp.json();
-        console.log('[NOMBA BANK LOOKUP]', lookupResp.status, JSON.stringify(lookupData));
-
-        if (lookupResp.ok && (lookupData.data?.accountName || lookupData.accountName)) {
-          const name = lookupData.data?.accountName || lookupData.accountName;
-          return res.json({ status: 'success', data: { accountName: name } });
-        }
-      }
-    }
-
-    // Return resolution failure so client lets user type manually
-    return res.status(404).json({
-      status: 'error',
-      error: 'Account name could not be automatically resolved. Please enter account name manually.'
-    });
-  } catch (err) {
-    console.error('[NOMBA RESOLVE ACCOUNT ERROR]', err);
     res.status(500).json({ error: err.message });
   }
 });
