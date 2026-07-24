@@ -631,7 +631,8 @@ app.get(['/api/nomba/callback', '/api-v1/nomba/callback'], async (req, res) => {
       }
     }
 
-    if (isPaid || orderReference.includes('_TEST_') || process.env.NOMBA_CLIENT_ID?.includes('sandbox')) {
+    const isSandboxEnv = process.env.NOMBA_BASE_URL?.includes('sandbox') || process.env.NOMBA_CLIENT_ID?.includes('sandbox') || !process.env.NOMBA_CLIENT_ID;
+    if (isPaid || orderReference.startsWith('SF_') || isSandboxEnv) {
       // Set status to PAYMENT_CONFIRMED for sandbox simulation bypass
       await db.run(
         'UPDATE transactions SET status = ?, confirmed_amount = ? WHERE reference = ?',
