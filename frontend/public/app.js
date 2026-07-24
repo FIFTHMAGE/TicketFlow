@@ -352,6 +352,9 @@ function openCheckout(eventId, price) {
   document.getElementById('proceed-button-container').classList.add('hidden');
   document.getElementById('checkout-status-msg').classList.add('hidden');
 
+  const backBtn = document.getElementById('checkout-back-btn');
+  if (backBtn) backBtn.style.display = 'none';
+
   // Put status message box back to its default layout location under step-pay
   document.getElementById('checkout-step-pay').prepend(document.getElementById('checkout-status-msg'));
 
@@ -413,6 +416,10 @@ async function initiatePayment(currencyId) {
   document.getElementById('checkout-step-init').classList.add('hidden');
   document.getElementById('checkout-step-pay').classList.remove('hidden');
   document.getElementById('checkout-title').innerText = 'Complete Payment';
+
+  // Reveal Back Button
+  const backBtn = document.getElementById('checkout-back-btn');
+  if (backBtn) backBtn.style.display = 'inline-block';
   
   // Hide elements to prevent blank placeholder flash while loading
   document.getElementById('qr-code-box').classList.add('hidden');
@@ -532,6 +539,10 @@ async function initiateNombaPayment() {
   document.getElementById('checkout-step-init').classList.add('hidden');
   document.getElementById('checkout-step-pay').classList.remove('hidden');
   document.getElementById('checkout-title').innerText = 'Complete Payment';
+
+  // Reveal Back Button
+  const backBtn = document.getElementById('checkout-back-btn');
+  if (backBtn) backBtn.style.display = 'inline-block';
 
   // Hide elements to prevent blank placeholder flash while loading
   document.getElementById('qr-code-box').classList.add('hidden');
@@ -687,12 +698,56 @@ async function checkPaymentStatus() {
     const data = await res.json();
     
     if (data.status === 'success') {
-      showCheckoutStatus(`Payment Confirmed! Redirecting...`, 'success');
-      setTimeout(() => {
-        activeReservationId = null; // cleared since it's converted
-        closeCheckout();
-        loadPublicStats(); // refresh visual dashboard instantly
-      }, 2000);
+      showCheckoutStatus(`Payment Confirmed!`, 'success');
+      
+      // Stop the reservation hold timer since order is complete
+      if (countdownInterval) clearInterval(countdownInterval);
+      document.getElementById('reservation-timer-banner').style.display = 'none';
+
+      // Clean up layout container states to show ticket details card
+      document.getElementById('nomba-iframe-container').classList.add('hidden');
+      document.getElementById('qr-code-box').classList.remove('hidden');
+      document.getElementById('address-container-box').classList.add('hidden');
+      document.getElementById('basqet-summary-container').classList.add('hidden');
+      document.getElementById('basqet-verify-buttons-container').classList.add('hidden');
+      document.getElementById('checkout-title').innerText = 'Ticket Issued';
+
+      // Hide Back button on success page
+      const backBtn = document.getElementById('checkout-back-btn');
+      if (backBtn) backBtn.style.display = 'none';
+
+      // Dynamically load the client-side QRCode library if not loaded
+      if (typeof QRCode === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js';
+        script.onload = () => drawTicketQR(activeTransactionId);
+        document.head.appendChild(script);
+      } else {
+        drawTicketQR(activeTransactionId);
+      }
+
+      // Show ticket card details inline under QR code
+      const qrBox = document.getElementById('qr-code-box');
+      qrBox.style.flexDirection = 'column';
+      qrBox.style.alignItems = 'center';
+      
+      // Create Close Action button so user determines when to exit
+      const closeBtnContainer = document.createElement('div');
+      closeBtnContainer.id = 'checkout-success-close-container';
+      closeBtnContainer.style.width = '100%';
+      closeBtnContainer.style.marginTop = '24px';
+      closeBtnContainer.innerHTML = `
+        <button class="btn-primary" style="width: 100%; padding: 14px;" onclick="closeSuccessScreen()">Close & Exit</button>
+      `;
+
+      // Prevent appending duplicates on multiple status clicks
+      const existingCloseBtn = document.getElementById('checkout-success-close-container');
+      if (!existingCloseBtn) {
+        document.getElementById('checkout-step-pay').appendChild(closeBtnContainer);
+      }
+
+      activeReservationId = null;
+      loadPublicStats();
     } else {
       // Show pending check details returned by server in custom message box
       showCheckoutStatus(data.message || 'Payment verification is pending. Please wait.', 'pending');
@@ -701,6 +756,53 @@ async function checkPaymentStatus() {
     console.error('Error verifying payment:', err);
     showCheckoutStatus('Verification check failed. Please try again.', 'error');
   }
+}
+
+function drawTicketQR(reference) {
+  const qrBox = document.getElementById('qr-code-box');
+  qrBox.innerHTML = `
+    <canvas id="ticket-qr-canvas" style="border-radius: 8px; background: #fff; padding: 12px; margin-bottom: 16px;"></canvas>
+    <div style="font-family: monospace; font-size: 0.82rem; color: var(--sand); text-align: center; line-height: 1.5;">
+      Ticket Reference:<br/>
+      <strong style="color: var(--green); font-size: 0.9rem;">${reference}</strong>
+      <p style="font-size: 0.72rem; margin-top: 8px; color: var(--off-white); opacity: 0.8;">A copy of this ticket with access pass details has been sent to your email.</p>
+    </div>
+  `;
+  const canvas = document.getElementById('ticket-qr-canvas');
+  if (canvas && typeof QRCode !== 'undefined') {
+    QRCode.toCanvas(canvas, reference, { width: 180, margin: 1 }, (err) => {
+      if (err) console.error('[CLIENT QR ERROR]', err);
+    });
+  }
+}
+
+function goBackToPaymentMethods() {
+  // Clear any status overlays
+  document.getElementById('checkout-status-msg').classList.add('hidden');
+  
+  // Transition back to selection step
+  document.getElementById('checkout-step-init').classList.remove('hidden');
+  document.getElementById('checkout-step-pay').classList.add('hidden');
+  document.getElementById('checkout-title').innerText = 'Select Payment Method';
+
+  // Hide Back button on selection screen
+  const backBtn = document.getElementById('checkout-back-btn');
+  if (backBtn) backBtn.style.display = 'none';
+
+  // Reset iframe src
+  document.getElementById('nomba-checkout-iframe').src = '';
+  setProceedButtonLoading(false);
+}
+
+function closeSuccessScreen() {
+  const closeBtn = document.getElementById('checkout-success-close-container');
+  if (closeBtn) closeBtn.remove();
+  
+  // Restore Back button style for next opens
+  const backBtn = document.getElementById('checkout-back-btn');
+  if (backBtn) backBtn.style.display = 'none';
+
+  closeCheckout();
 }
 
 function selectPaymentOption(btn, method, currencyId) {
