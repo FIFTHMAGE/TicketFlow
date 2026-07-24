@@ -674,12 +674,18 @@ app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (
     return res.status(400).json({ error: 'bankName and accountNumber are required' });
   }
 
-  // Fallback demo map for test/sandbox account numbers
-  const mockAccountNames = {
-    '0123456789': 'Adeola Bello',
-    '9876543210': 'Tech Fest Event Services',
-    '1122334455': 'Tix Africa Limited',
-    '5544332211': 'Oluwaseun Vance'
+  // Official NIP / CBN Bank Codes for Nigerian Banks
+  const BANK_CODES = {
+    'Access Bank': '044',
+    'First Bank': '011',
+    'GTBank': '058',
+    'Kuda Bank': '50211',
+    'Opay': '999992',
+    'Palmpay': '999991',
+    'UBA': '033',
+    'Wema Bank': '035',
+    'Zenith Bank': '057',
+    'Moniepoint': '50515'
   };
 
   try {
@@ -703,6 +709,7 @@ app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (
       const token = tokenData.data?.access_token || tokenData.access_token;
 
       if (token) {
+        const bankCode = BANK_CODES[bankName] || bankName;
         // 2. Query account lookup from Nomba API
         const lookupResp = await fetch(`${NOMBA_BASE}/transfers/bank/lookup`, {
           method: 'POST',
@@ -713,11 +720,13 @@ app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (
           },
           body: JSON.stringify({
             accountNumber,
-            bankCode: bankName // Nomba accepts bank name or code
+            bankCode
           })
         });
 
         const lookupData = await lookupResp.json();
+        console.log('[NOMBA BANK LOOKUP]', lookupResp.status, JSON.stringify(lookupData));
+
         if (lookupResp.ok && (lookupData.data?.accountName || lookupData.accountName)) {
           const name = lookupData.data?.accountName || lookupData.accountName;
           return res.json({ status: 'success', data: { accountName: name } });
@@ -725,11 +734,10 @@ app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (
       }
     }
 
-    // Fallback: If mock number or API resolution unavailable, derive from mock map or fallback formatted string
-    const fallbackName = mockAccountNames[accountNumber] || `${bankName} Account Holder`;
-    return res.json({
-      status: 'success',
-      data: { accountName: fallbackName }
+    // Return resolution failure so client lets user type manually
+    return res.status(404).json({
+      status: 'error',
+      error: 'Account name could not be automatically resolved. Please enter account name manually.'
     });
   } catch (err) {
     console.error('[NOMBA RESOLVE ACCOUNT ERROR]', err);

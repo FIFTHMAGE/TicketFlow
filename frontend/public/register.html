@@ -750,10 +750,16 @@
           document.getElementById('err-account-number').classList.remove('show');
         } else {
           nameInput.value = '';
-          showFieldError('account-number', data.error || 'Could not resolve account name. Enter manually.');
+          nameInput.placeholder = 'e.g. Adeola Bello (Enter manually)';
+          const errEl = document.getElementById('err-account-number');
+          if (errEl) {
+            errEl.textContent = 'Account name lookup failed. Please type your account name.';
+            errEl.classList.add('show');
+          }
         }
       } catch (err) {
         nameInput.value = '';
+        nameInput.placeholder = 'Enter account name';
         console.warn('Bank account name resolution error:', err);
       } finally {
         nameInput.disabled = false;
