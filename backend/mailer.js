@@ -137,8 +137,9 @@ async function sendTicketEmail(tx, customerEmail, customerName, eventName) {
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { margin: 0; padding: 0; background: #FAF9F6; font-family: 'Inter', Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+    body { margin: 0; padding: 0; background: #FAF9F6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
     .container { max-width: 520px; margin: 40px auto; background: #FFFFFF; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #EDEDE6; }
     .header { background: #92CB3C; padding: 32px; text-align: left; }
     .header h1 { margin: 0; color: #0B0D0A; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
@@ -148,19 +149,23 @@ async function sendTicketEmail(tx, customerEmail, customerName, eventName) {
     .event-title { font-size: 18px; font-weight: 800; color: #0B0D0A; margin-bottom: 6px; }
     .event-meta { font-size: 13px; color: #7A7462; line-height: 1.5; margin-bottom: 4px; }
     .summary-title { font-size: 14px; font-weight: 700; color: #0B0D0A; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; border-bottom: 2px solid #EDEDE6; padding-bottom: 6px; }
-    .detail-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px dashed #EDEDE6; font-size: 14px; }
-    .detail-row:last-of-type { border-bottom: none; }
-    .detail-label { color: #7A7462; }
-    .detail-value { color: #0B0D0A; font-weight: 600; }
+    
+    /* Cross-client safe table styling to replace flexbox layout */
+    .detail-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+    .detail-row td { padding: 10px 0; border-bottom: 1px dashed #EDEDE6; font-size: 14px; }
+    .detail-table tr:last-of-type td { border-bottom: none; }
+    .detail-label { color: #7A7462; text-align: left; }
+    .detail-value { color: #0B0D0A; font-weight: 600; text-align: right; word-break: break-all; }
+    
     .qr-box { text-align: center; margin: 32px 0; padding: 20px; background: #FAF9F6; border-radius: 12px; border: 1px dashed #EDEDE6; }
-    .qr-box img { border-radius: 6px; }
+    .qr-box img { border-radius: 6px; display: inline-block; }
     .footer { padding: 24px 32px; font-size: 12px; color: #7A7462; text-align: center; background: #FAF9F6; border-top: 1px solid #EDEDE6; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>✦ Order Confirmed</h1>
+      <h1>Order Confirmed</h1>
     </div>
     <div class="body">
       <div class="greeting">${name}, you're officially in!</div>
@@ -170,17 +175,19 @@ async function sendTicketEmail(tx, customerEmail, customerName, eventName) {
         <div class="event-meta">📍 Venue Admission Gate Console</div>
         <div class="event-meta">🎫 Status: Confirmed & Paid</div>
       </div>
-
+ 
       <div class="summary-title">Order Summary</div>
-      <div class="detail-row">
-        <span class="detail-label">Ticket Reference</span>
-        <span class="detail-value" style="font-family: monospace;">${tx.reference}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Amount Paid</span>
-        <span class="detail-value">₦${tx.gross_amount.toLocaleString()}</span>
-      </div>
-
+      <table class="detail-table">
+        <tr class="detail-row">
+          <td class="detail-label">Ticket Reference</td>
+          <td class="detail-value" style="font-family: monospace; font-size: 13px;">${tx.reference}</td>
+        </tr>
+        <tr class="detail-row">
+          <td class="detail-label">Amount Paid</td>
+          <td class="detail-value">₦${tx.gross_amount.toLocaleString()}</td>
+        </tr>
+      </table>
+ 
       <div class="qr-box">
         <div style="font-size: 13px; font-weight: 700; color: #0B0D0A; margin-bottom: 12px;">Your Gate Pass Entry Code</div>
         <img src="cid:ticket-qr" width="160" height="160" alt="Ticket QR Code" />
@@ -194,22 +201,25 @@ async function sendTicketEmail(tx, customerEmail, customerName, eventName) {
 </body>
 </html>
 `;
-
+ 
   try {
     const attachments = [
       {
         filename: 'ticket-qr.png',
         content: qrBase64,
         content_id: 'ticket-qr',
-        content_type: 'image/png'
+        id: 'ticket-qr',
+        content_type: 'image/png',
+        disposition: 'inline'
       }
     ];
-
+ 
     if (pdfBuffer) {
       attachments.push({
         filename: `Ticket-${tx.reference}.pdf`,
         content: pdfBuffer.toString('base64'),
-        content_type: 'application/pdf'
+        content_type: 'application/pdf',
+        disposition: 'attachment'
       });
     }
 
