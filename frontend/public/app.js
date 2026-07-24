@@ -31,6 +31,13 @@ window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('checkout-step-init').classList.add('hidden');
       document.getElementById('checkout-step-pay').classList.remove('hidden');
       document.getElementById('checkout-title').innerText = 'Payment Confirmed';
+
+      // Hide Basqet layout parameters completely to avoid overlap clash
+      document.getElementById('basqet-summary-container').classList.add('hidden');
+      document.getElementById('basqet-verify-buttons-container').classList.add('hidden');
+      document.getElementById('qr-code-box').classList.add('hidden');
+      document.getElementById('address-container-box').classList.add('hidden');
+      document.getElementById('nomba-iframe-container').classList.add('hidden');
       
       // Auto-verify status
       checkPaymentStatus();
