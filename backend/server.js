@@ -202,6 +202,34 @@ app.post('/api/vendor/resend-verification', authLimiter, async (req, res) => {
   res.json({ status: 'success', message: 'Verification email resent if account exists.' });
 });
 
+// Helper: Obtain Flutterwave v4 OAuth2 Access Token
+async function getFlwV4AccessToken() {
+  const clientId = process.env.FLW_CLIENT_ID;
+  const clientSecret = process.env.FLW_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) return null;
+
+  try {
+    const params = new URLSearchParams();
+    params.append('client_id', clientId);
+    params.append('client_secret', clientSecret);
+    params.append('grant_type', 'client_credentials');
+
+    const tokenResp = await fetch('https://idp.flutterwave.com/realms/flutterwave/protocol/openid-connect/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params
+    });
+
+    const tokenData = await tokenResp.json();
+    console.log('[FLUTTERWAVE V4 OAUTH TOKEN RESPONSE]', tokenResp.status, tokenData.access_token ? 'TOKEN_ACQUIRED' : 'FAILED');
+    return tokenData.access_token || null;
+  } catch (err) {
+    console.error('[FLUTTERWAVE V4 OAUTH ERROR]', err.message);
+    return null;
+  }
+}
+
 // ── Flutterwave: resolve bank account name ────────────────────────────────
 app.get(['/api/flutterwave/resolve-account', '/api-v1/flutterwave/resolve-account', '/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (req, res) => {
   const { bankName, accountNumber } = req.query;
@@ -234,11 +262,41 @@ app.get(['/api/flutterwave/resolve-account', '/api-v1/flutterwave/resolve-accoun
   try {
     let bankCode = BANK_CODES[bankName] || bankName;
 
-    // Use Flutterwave Secret Key if available
-    const FLW_SECRET = process.env.FLW_SECRET_KEY;
+    // 1. Try Flutterwave v4 OAuth account resolution if FLW_CLIENT_ID is set
+    const v4AccessToken = await getFlwV4AccessToken();
+    if (v4AccessToken) {
+      const v4BaseUrl = process.env.FLW_V4_BASE_URL || 'https://developersandbox-api.flutterwave.com';
+      const resolveResp = await fetch(`${v4BaseUrl}/banks/account-resolve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${v4AccessToken}`
+        },
+        body: JSON.stringify({
+          currency: 'NGN',
+          account_number: accountNumber,
+          account_bank: bankCode
+        })
+      });
 
+      const resolveData = await resolveResp.json();
+      console.log('[FLUTTERWAVE V4 ACCOUNT RESOLVE RESPONSE]', resolveResp.status, JSON.stringify(resolveData));
+
+      if (resolveResp.ok && (resolveData.data?.account_name || resolveData.account_name)) {
+        const name = resolveData.data?.account_name || resolveData.account_name;
+        return res.json({
+          status: 'success',
+          data: {
+            accountNumber,
+            accountName: name
+          }
+        });
+      }
+    }
+
+    // 2. Fallback to Flutterwave v3 API if Secret Key is set
+    const FLW_SECRET = process.env.FLW_SECRET_KEY;
     if (FLW_SECRET) {
-      // 1. Resolve account details using Flutterwave v3 API: POST https://api.flutterwave.com/v3/accounts/resolve
       const resolveResp = await fetch('https://api.flutterwave.com/v3/accounts/resolve', {
         method: 'POST',
         headers: {
@@ -252,7 +310,7 @@ app.get(['/api/flutterwave/resolve-account', '/api-v1/flutterwave/resolve-accoun
       });
 
       const resolveData = await resolveResp.json();
-      console.log('[FLUTTERWAVE ACCOUNT RESOLVE RESPONSE]', resolveResp.status, JSON.stringify(resolveData));
+      console.log('[FLUTTERWAVE V3 ACCOUNT RESOLVE RESPONSE]', resolveResp.status, JSON.stringify(resolveData));
 
       if (resolveResp.ok && resolveData.status === 'success' && resolveData.data?.account_name) {
         return res.json({
@@ -265,7 +323,7 @@ app.get(['/api/flutterwave/resolve-account', '/api-v1/flutterwave/resolve-accoun
       }
     }
 
-    // Return sandbox mock test account if matching test number
+    // 3. Return sandbox mock test account if matching test number
     if (testAccounts[accountNumber]) {
       return res.json({
         status: 'success',
