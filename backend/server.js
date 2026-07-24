@@ -867,8 +867,14 @@ app.post(['/api/flutterwave/pay-initiate', '/api-v1/flutterwave/pay-initiate', '
 // ── Flutterwave: Callback Redirect Handler ───────────────────────────────
 app.get(['/api/flutterwave/callback', '/api-v1/flutterwave/callback'], async (req, res) => {
   const { status, tx_ref, transaction_id } = req.query;
-  const orderReference = tx_ref || req.query.orderReference;
-  console.log('[FLUTTERWAVE CALLBACK] Received:', { status, tx_ref, transaction_id });
+  
+  // Flutterwave can pass duplicate tx_ref in URL query parameters resulting in an array
+  let orderReference = tx_ref || req.query.orderReference;
+  if (Array.isArray(orderReference)) {
+    orderReference = orderReference[0];
+  }
+  
+  console.log('[FLUTTERWAVE CALLBACK] Parsed reference:', orderReference, 'Received:', { status, tx_ref, transaction_id });
 
   if (!orderReference) {
     return res.status(400).send('Missing tx_ref / orderReference query parameter.');
