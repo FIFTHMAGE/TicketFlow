@@ -28,7 +28,7 @@ const settlement = require('./settlement');
 const reconciliation = require('./reconciliation');
 const reservations = require('./reservations');
 const { sendTicketEmail } = require('./mailer');
-const { requireAdmin, JWT_SECRET } = require('./middleware/auth');
+const { requireAdmin, requireVendor, JWT_SECRET } = require('./middleware/auth');
 const { handleBasqetWebhook } = require('./webhooks/basqet');
 const { handleNombaWebhook } = require('./webhooks/nomba');
 
@@ -102,6 +102,7 @@ const webhookLimiter = rateLimit({
 
 // ── Static file serving ───────────────────────────────────────────────────
 app.use('/admin', requireAdmin, express.static(path.join(__dirname, '../frontend/admin')));
+app.use('/portal', express.static(path.join(__dirname, '../frontend/portal')));
 app.use(express.static(path.join(__dirname, '../frontend/public')));
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
@@ -146,10 +147,14 @@ app.post('/api/vendor/register', authLimiter, async (req, res) => {
     const vendorId = `vendor_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const vendorName = accountType === 'organization' ? orgName : `${firstName} ${lastName}`;
 
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
     // Create vendor record
     await db.run(
-      'INSERT INTO vendors (id, platform_id, name, bank_name, account_number, account_name) VALUES (?, ?, ?, ?, ?, ?)',
-      [vendorId, DEFAULT_PLATFORM, vendorName, bankName, accountNumber, accountName]
+      'INSERT INTO vendors (id, platform_id, name, bank_name, account_number, account_name, email, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [vendorId, DEFAULT_PLATFORM, vendorName, bankName, accountNumber, accountName, email, passwordHash]
     );
 
     // Create vendor payable ledger account
@@ -195,6 +200,98 @@ app.post('/api/vendor/resend-verification', authLimiter, async (req, res) => {
   res.json({ status: 'success', message: 'Verification email resent if account exists.' });
 });
 
+// ── Vendor Login ─────────────────────────────────────────────────────────────
+app.post('/api/vendor/login', authLimiter, async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'email and password are required' });
+  }
+
+  try {
+    const vendor = await db.get('SELECT * FROM vendors WHERE email = ?', [email]);
+    if (!vendor || !vendor.password_hash) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const valid = await bcrypt.compare(password, vendor.password_hash);
+    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const token = jwt.sign({ vendorId: vendor.id, email: vendor.email, role: 'VENDOR' }, JWT_SECRET, { expiresIn: '8h' });
+    res.json({ token, vendorId: vendor.id, email: vendor.email, name: vendor.name, role: 'VENDOR' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ── Vendor Portal APIs ──────────────────────────────────────────────────────
+app.get('/api/vendor/stats', requireVendor, async (req, res) => {
+  try {
+    const vendorId = req.vendor.vendorId;
+
+    // Tickets sold: number of successful transactions
+    const ticketsSoldRes = await db.get(
+      "SELECT COUNT(*) as count FROM transactions WHERE vendor_id = ? AND status IN ('PAYMENT_CONFIRMED', 'ALLOCATED_TO_LEDGER')",
+      [vendorId]
+    );
+
+    // Gross earnings (total price paid by customers for this vendor's events)
+    const grossEarningsRes = await db.get(
+      "SELECT SUM(gross_amount) as total FROM transactions WHERE vendor_id = ? AND status IN ('PAYMENT_CONFIRMED', 'ALLOCATED_TO_LEDGER')",
+      [vendorId]
+    );
+
+    // Vendor payable balance
+    const payableRes = await db.get("SELECT balance FROM ledger_accounts WHERE id = ?", [`VENDOR_PAYABLE_${vendorId}`]);
+
+    // Remaining stock across events
+    // Wait, do events have stock/quantity? Supabase schema didn't seem to have stock logic strictly, but let's check
+    res.json({
+      ticketsSold: ticketsSoldRes ? ticketsSoldRes.count : 0,
+      grossEarnings: grossEarningsRes && grossEarningsRes.total ? grossEarningsRes.total : 0,
+      netPayable: payableRes ? payableRes.balance : 0
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/vendor/events', requireVendor, async (req, res) => {
+  try {
+    const vendorId = req.vendor.vendorId;
+    const items = await db.all(
+      "SELECT m.*, (SELECT COUNT(*) FROM transactions t WHERE t.marketplace_item_id = m.id AND t.status IN ('PAYMENT_CONFIRMED', 'ALLOCATED_TO_LEDGER')) as sold_count FROM marketplace_items m WHERE m.vendor_id = ?",
+      [vendorId]
+    );
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/vendor/events/create', requireVendor, async (req, res) => {
+  const { name, price } = req.body;
+  if (!name || price === undefined) {
+    return res.status(400).json({ error: 'Name and price are required' });
+  }
+
+  try {
+    const vendorId = req.vendor.vendorId;
+    // Determine platform from vendor
+    const vendor = await db.get("SELECT platform_id FROM vendors WHERE id = ?", [vendorId]);
+    if (!vendor) return res.status(404).json({ error: 'Vendor not found' });
+
+    const itemId = `item_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    await db.run(
+      "INSERT INTO marketplace_items (id, platform_id, vendor_id, name, price, status) VALUES (?, ?, ?, ?, ?, 'ACTIVE')",
+      [itemId, vendor.platform_id, vendorId, name, price]
+    );
+
+    res.status(201).json({ status: 'success', eventId: itemId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 
 // ── Public storefront APIs ────────────────────────────────────────────────

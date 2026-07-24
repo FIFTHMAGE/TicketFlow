@@ -66,8 +66,34 @@ function requireRole(role) {
   };
 }
 
+function requireVendor(req, res, next) {
+  let token = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  }
+
+  if (!token) {
+    if (req.accepts('html')) return res.redirect('/portal/login.html');
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, EFFECTIVE_JWT_SECRET);
+    if (decoded.role !== 'VENDOR') {
+      return res.status(403).json({ error: 'forbidden: requires VENDOR role' });
+    }
+    req.vendor = decoded; // { vendorId, email, role }
+    next();
+  } catch (err) {
+    if (req.accepts('html')) return res.redirect('/portal/login.html');
+    return res.status(401).json({ error: 'invalid token' });
+  }
+}
+
 module.exports = {
   requireAdmin,
   requireRole,
+  requireVendor,
   JWT_SECRET: EFFECTIVE_JWT_SECRET
 };

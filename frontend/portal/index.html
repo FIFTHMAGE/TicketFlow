@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Creator Portal - TicketFlow</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="../styles.css">
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #f8f9fa; }
+    .navbar { background: #1a1a2e; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+    .navbar h1 { margin: 0; font-size: 1.5rem; }
+    .navbar a { color: #e9ecef; text-decoration: none; margin-left: 1rem; }
+    .container { max-width: 1000px; margin: 2rem auto; padding: 0 1rem; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .stat-card h3 { margin: 0 0 0.5rem 0; font-size: 1rem; color: #6c757d; }
+    .stat-card p { margin: 0; font-size: 1.5rem; font-weight: bold; }
+    .card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 2rem; }
+    .card h2 { margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #dee2e6; }
+    th { background: #f8f9fa; }
+    .btn { background: #007bff; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; }
+    .btn:hover { background: #0056b3; }
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; margin-bottom: 0.5rem; }
+    .form-group input { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <h1>Creator Portal</h1>
+    <div>
+      <span id="userName"></span>
+      <a href="#" id="logoutBtn">Logout</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Tickets Sold</h3>
+        <p id="statTicketsSold">0</p>
+      </div>
+      <div class="stat-card">
+        <h3>Gross Earnings</h3>
+        <p id="statGrossEarnings">NGN 0.00</p>
+      </div>
+      <div class="stat-card">
+        <h3>Net Payable (Your share)</h3>
+        <p id="statNetPayable">NGN 0.00</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Your Events</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Tickets Sold</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="eventsTableBody">
+          <tr><td colspan="4">Loading events...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Create New Event</h2>
+      <form id="createEventForm">
+        <div class="form-group">
+          <label>Event Name</label>
+          <input type="text" id="eventName" required>
+        </div>
+        <div class="form-group">
+          <label>Ticket Price (NGN)</label>
+          <input type="number" id="eventPrice" min="0" step="0.01" required>
+        </div>
+        <button type="submit" class="btn">Create Event</button>
+      </form>
+      <div id="createMsg" style="margin-top: 1rem;"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

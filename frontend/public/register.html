@@ -375,7 +375,7 @@
       <div class="logo-mark"></div>
       stub
     </a>
-    <span class="nav-signin">Already have an account? <a href="/login.html">Sign in</a></span>
+    <span class="nav-signin">Already have an account? <a href="/portal/login.html">Sign in</a></span>
   </nav>
 
   <div class="page">
@@ -583,7 +583,7 @@
       
       if (currentStep === TOTAL_STEPS) {
         cont.textContent = 'Go to Dashboard';
-        cont.onclick = () => { window.location.href = '/login.html'; };
+        cont.onclick = () => { window.location.href = '/portal/login.html'; };
       } else {
         cont.textContent = currentStep === 3 ? 'Create Account' : 'Continue';
         cont.onclick = goNext;

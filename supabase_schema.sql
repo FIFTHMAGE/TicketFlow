@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS vendors (
   bank_code       TEXT,
   account_number  TEXT NOT NULL,
   account_name    TEXT NOT NULL,
+  email           TEXT UNIQUE,
+  password_hash   TEXT,
   status          TEXT NOT NULL DEFAULT 'ACTIVE',
   created_at      TIMESTAMPTZ DEFAULT NOW()
 );
