@@ -874,8 +874,8 @@ function selectPaymentOption(btn, method, currencyId) {
   btn.style.backgroundColor = 'rgba(146, 203, 60, 0.08)';
   btn.style.borderColor = 'var(--green)';
 
-  // If Nomba selected, hide the crypto dropdown
-  if (method === 'nomba') {
+  // If Nomba or Flutterwave selected, hide the crypto dropdown
+  if (method === 'nomba' || method === 'flutterwave') {
     const sel = document.getElementById('basqet-currency-select');
     if (sel) sel.style.display = 'none';
   }
@@ -887,7 +887,7 @@ function selectPaymentOption(btn, method, currencyId) {
 }
 
 function handleProceedPayment() {
-  if (selectedGateway === 'nomba') {
+  if (selectedGateway === 'nomba' || selectedGateway === 'flutterwave') {
     initiateNombaPayment();
   } else if (selectedGateway === 'basqet' && selectedCurrencyId) {
     initiatePayment(selectedCurrencyId);
