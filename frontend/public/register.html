@@ -725,6 +725,58 @@
       }).then(() => alert('Verification email resent!')).catch(() => {});
     }
 
+    // Auto-fetch bank account name when bank is selected and account number is 10 digits
+    async function resolveBankAccount() {
+      const bankSelect = document.getElementById('bank-name');
+      const accountInput = document.getElementById('account-number');
+      const nameInput = document.getElementById('account-name');
+      
+      const bank = bankSelect.value;
+      const accountNumber = accountInput.value.trim();
+
+      if (!bank || accountNumber.length !== 10) {
+        return;
+      }
+
+      nameInput.value = 'Fetching account name...';
+      nameInput.disabled = true;
+
+      try {
+        const response = await fetch(`/api-v1/nomba/resolve-account?bankName=${encodeURIComponent(bank)}&accountNumber=${encodeURIComponent(accountNumber)}`);
+        const data = await response.json();
+        
+        if (response.ok && data.status === 'success' && data.data && data.data.accountName) {
+          nameInput.value = data.data.accountName;
+          document.getElementById('err-account-number').classList.remove('show');
+        } else {
+          nameInput.value = '';
+          showFieldError('account-number', data.error || 'Could not resolve account name. Enter manually.');
+        }
+      } catch (err) {
+        nameInput.value = '';
+        console.warn('Bank account name resolution error:', err);
+      } finally {
+        nameInput.disabled = false;
+      }
+    }
+
+    // Bind event listeners to trigger account resolution
+    document.addEventListener('DOMContentLoaded', () => {
+      const bankSelect = document.getElementById('bank-name');
+      const accountInput = document.getElementById('account-number');
+      
+      if (bankSelect && accountInput) {
+        bankSelect.addEventListener('change', resolveBankAccount);
+        accountInput.addEventListener('input', () => {
+          // Remove non-digits
+          accountInput.value = accountInput.value.replace(/\D/g, '');
+          if (accountInput.value.length === 10) {
+            resolveBankAccount();
+          }
+        });
+      }
+    });
+
     // Init
     updateUI();
     document.getElementById('btn-back').style.display = 'none';
