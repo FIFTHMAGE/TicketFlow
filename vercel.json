@@ -22,6 +22,10 @@
     {
       "source": "/portal/:path*",
       "destination": "/backend/server.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/backend/server.js"
     }
   ]
 }
