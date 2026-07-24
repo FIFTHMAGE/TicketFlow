@@ -945,6 +945,34 @@ app.post('/api/admin/events', requireAdmin, async (req, res) => {
   }
 });
 
+// ── Admin: update an event ────────────────────────────────────────────────────
+app.patch('/api/admin/events/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { name, price, qty } = req.body;
+  try {
+    const event = await db.get('SELECT * FROM marketplace_items WHERE id = ?', [id]);
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+
+    const newName  = name  ?? event.name;
+    const newPrice = price ?? event.price;
+    const newQty   = qty   ?? event.total_quantity;
+
+    await db.run(
+      'UPDATE marketplace_items SET name = ?, price = ?, total_quantity = ?, available_quantity = ? WHERE id = ?',
+      [newName, newPrice, newQty, newQty, id]
+    );
+
+    await db.run(
+      'INSERT INTO audit_logs (username, action, details) VALUES (?, ?, ?)',
+      [req.admin.username, 'UPDATE_EVENT', `Event ${id} updated: name="${newName}", price=₦${newPrice}, qty=${newQty}`]
+    );
+
+    res.json({ status: 'success', id, name: newName, price: newPrice, qty: newQty });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
