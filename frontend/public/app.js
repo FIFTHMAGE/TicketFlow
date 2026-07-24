@@ -414,10 +414,14 @@ async function initiatePayment(currencyId) {
   document.getElementById('checkout-step-pay').classList.remove('hidden');
   document.getElementById('checkout-title').innerText = 'Complete Payment';
   
-  // Hide visual payment boxes during loading so user doesn't see a blank placeholder
+  // Hide elements to prevent blank placeholder flash while loading
   document.getElementById('qr-code-box').classList.add('hidden');
   document.getElementById('address-container-box').classList.add('hidden');
   document.getElementById('nomba-iframe-container').classList.add('hidden');
+  
+  // Basqet payment: show crypto summary and confirmation buttons
+  document.getElementById('basqet-summary-container').classList.remove('hidden');
+  document.getElementById('basqet-verify-buttons-container').classList.remove('hidden');
   
   showCheckoutStatus('Preparing payment request...', 'pending');
 
@@ -533,6 +537,10 @@ async function initiateNombaPayment() {
   document.getElementById('qr-code-box').classList.add('hidden');
   document.getElementById('address-container-box').classList.add('hidden');
   document.getElementById('nomba-iframe-container').classList.add('hidden');
+
+  // Nomba payment: hide Basqet summary card and verify buttons to avoid layout overlap
+  document.getElementById('basqet-summary-container').classList.add('hidden');
+  document.getElementById('basqet-verify-buttons-container').classList.add('hidden');
 
   try {
     // 1. Reserve the ticket first
