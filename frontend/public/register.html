@@ -495,8 +495,8 @@
             </div>
             <div class="form-group">
               <label for="account-name">Account name</label>
-              <input type="text" id="account-name" placeholder="Auto-fetched" />
-              <div class="field-error" id="err-account-name">Required</div>
+              <input type="text" id="account-name" placeholder="Auto-fetched" readonly style="background: rgba(255,255,255,0.02); cursor: not-allowed;" />
+              <div class="field-error" id="err-account-name">Account name must be verified from bank</div>
             </div>
           </div>
           <div class="form-group">
@@ -735,11 +735,11 @@
       const accountNumber = accountInput.value.trim();
 
       if (!bank || accountNumber.length !== 10) {
+        nameInput.value = '';
         return;
       }
 
-      nameInput.value = 'Fetching account name...';
-      nameInput.disabled = true;
+      nameInput.value = 'Verifying with bank...';
 
       try {
         const response = await fetch(`/api-v1/nomba/resolve-account?bankName=${encodeURIComponent(bank)}&accountNumber=${encodeURIComponent(accountNumber)}`);
@@ -748,21 +748,18 @@
         if (response.ok && data.status === 'success' && data.data && data.data.accountName) {
           nameInput.value = data.data.accountName;
           document.getElementById('err-account-number').classList.remove('show');
+          document.getElementById('err-account-name').classList.remove('show');
         } else {
           nameInput.value = '';
-          nameInput.placeholder = 'e.g. Adeola Bello (Enter manually)';
           const errEl = document.getElementById('err-account-number');
           if (errEl) {
-            errEl.textContent = 'Account name lookup failed. Please type your account name.';
+            errEl.textContent = data.error || 'Account lookup failed. Verify account number and bank.';
             errEl.classList.add('show');
           }
         }
       } catch (err) {
         nameInput.value = '';
-        nameInput.placeholder = 'Enter account name';
         console.warn('Bank account name resolution error:', err);
-      } finally {
-        nameInput.disabled = false;
       }
     }
 
