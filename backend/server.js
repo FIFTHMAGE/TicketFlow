@@ -348,25 +348,26 @@ app.get(['/api/basqet/currencies', '/api-v1/basqet/currencies'], async (req, res
     return res.json({ currencies: basqetCurrencyCache.data });
   }
   try {
-    const r = await fetch('https://api.basqet.com/v1/currency', {
-      headers: {
-        'Authorization': `Bearer ${process.env.BASQET_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
+    // Request only CRYPTO currencies as per Basqet docs (?type=CRYPTO)
+    const r = await fetch('https://api.basqet.com/v1/currency?type=CRYPTO', {
+      headers: { 'Authorization': `Bearer ${process.env.BASQET_API_KEY}` }
     });
-    const data = await r.json();
-    const currencies = data.data || data.currencies || data || [];
-    basqetCurrencyCache = { data: Array.isArray(currencies) ? currencies : [], fetchedAt: Date.now() };
-    return res.json({ currencies: basqetCurrencyCache.data });
+    const json = await r.json();
+    // Docs confirm: response shape is { status, data: [...], meta }
+    const currencies = Array.isArray(json.data) ? json.data : [];
+    console.log('[BASQET CURRENCIES] fetched:', currencies.length, 'tokens');
+    basqetCurrencyCache = { data: currencies, fetchedAt: Date.now() };
+    return res.json({ currencies });
   } catch (err) {
     console.error('[BASQET CURRENCIES ERROR]', err);
-    // Return known fallback list so UI is never empty
+    // Fallback: known tokens with real Basqet CDN icon URLs
+    const BASE_ICON = 'https://basquet-assets.s3.amazonaws.com/icons/currency';
     return res.json({ currencies: [
-      { id: 3, name: 'Tether', slug: 'USDT', type: 'CRYPTO' },
-      { id: 4, name: 'Bitcoin', slug: 'BTC', type: 'CRYPTO' },
-      { id: 5, name: 'Quidax Token', slug: 'QDX', type: 'CRYPTO' },
-      { id: 6, name: 'Ethereum', slug: 'ETH', type: 'CRYPTO' },
-      { id: 7, name: 'Litecoin', slug: 'LTC', type: 'CRYPTO' },
+      { id: 3, name: 'Tether',       slug: 'USDT', type: 'CRYPTO', icon_url: `${BASE_ICON}/USDT.svg` },
+      { id: 4, name: 'Bitcoin',      slug: 'BTC',  type: 'CRYPTO', icon_url: `${BASE_ICON}/BTC.svg`  },
+      { id: 5, name: 'Quidax Token', slug: 'QDX',  type: 'CRYPTO', icon_url: `${BASE_ICON}/QDX.svg`  },
+      { id: 6, name: 'Ethereum',     slug: 'ETH',  type: 'CRYPTO', icon_url: `${BASE_ICON}/ETH.svg`  },
+      { id: 7, name: 'Litecoin',     slug: 'LTC',  type: 'CRYPTO', icon_url: `${BASE_ICON}/LTC.svg`  },
     ]});
   }
 });

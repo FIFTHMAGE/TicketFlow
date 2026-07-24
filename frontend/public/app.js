@@ -19,6 +19,7 @@ async function loadBasqetCurrencies() {
   const select = document.getElementById('basqet-currency-select');
   if (!select) return;
 
+  // Emoji fallback if icon_url fails
   const emojiMap = {
     USDT: '🟢', BTC: '🪙', ETH: '🔷', LTC: '🔵',
     QDX: '🟡', BNB: '🟠', SOL: '🟣', USDC: '🔵',
@@ -28,28 +29,33 @@ async function loadBasqetCurrencies() {
   try {
     const res = await fetch(`${API_BASE}/basqet/currencies`);
     const data = await res.json();
+    // Backend already filters ?type=CRYPTO, but guard just in case
     const currencies = (data.currencies || []).filter(c => c.type === 'CRYPTO');
 
     currencies.forEach(c => {
-      const emoji = emojiMap[c.slug?.toUpperCase()] || '💠';
+      const slug = c.slug?.toUpperCase();
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.dataset.slug = c.slug?.toUpperCase();
-      opt.textContent = `${emoji}  ${c.slug} — ${c.name}`;
+      opt.dataset.slug = slug;
+      opt.dataset.icon = c.icon_url || '';
+      opt.textContent = `${emojiMap[slug] || '💠'}  ${c.slug} — ${c.name}`;
       select.appendChild(opt);
     });
   } catch (err) {
     console.error('Failed to load Basqet currencies:', err);
-    // Fallback options
-    [{ id: 3, slug: 'USDT', name: 'Tether', e: '🟢' },
-     { id: 4, slug: 'BTC',  name: 'Bitcoin', e: '🪙' },
-     { id: 5, slug: 'QDX',  name: 'Quidax Token', e: '🟡' },
-     { id: 6, slug: 'ETH',  name: 'Ethereum', e: '🔷' },
-     { id: 7, slug: 'LTC',  name: 'Litecoin', e: '🔵' }
+    const BASE_ICON = 'https://basquet-assets.s3.amazonaws.com/icons/currency';
+    [{ id: 3, slug: 'USDT', name: 'Tether' },
+     { id: 4, slug: 'BTC',  name: 'Bitcoin' },
+     { id: 5, slug: 'QDX',  name: 'Quidax Token' },
+     { id: 6, slug: 'ETH',  name: 'Ethereum' },
+     { id: 7, slug: 'LTC',  name: 'Litecoin' }
     ].forEach(c => {
+      const slug = c.slug.toUpperCase();
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.textContent = `${c.e}  ${c.slug} — ${c.name}`;
+      opt.dataset.slug = slug;
+      opt.dataset.icon = `${BASE_ICON}/${c.slug}.svg`;
+      opt.textContent = `${emojiMap[slug] || '💠'}  ${c.slug} — ${c.name}`;
       select.appendChild(opt);
     });
   }
