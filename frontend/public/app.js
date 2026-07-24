@@ -24,7 +24,7 @@ window.addEventListener('DOMContentLoaded', () => {
     
     if (status === 'success') {
       activeTransactionId = ref;
-      activePaymentGateway = 'nomba';
+      activePaymentGateway = 'flutterwave';
       
       // Open modal directly on the payment success message screen
       document.getElementById('checkout-modal').classList.add('active');

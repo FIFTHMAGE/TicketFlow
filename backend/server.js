@@ -914,10 +914,18 @@ app.get(['/api/flutterwave/callback', '/api-v1/flutterwave/callback'], async (re
         await sendTicketEmail(tx, tx.customer_email, tx.customer_name);
       } catch (mailErr) {}
 
-      return res.redirect(`/index.html?ref=${orderReference}&status=success`);
+      return res.send(`
+        <script>
+          window.parent.location.href = "/index.html?ref=${orderReference}&status=success";
+        </script>
+      `);
     } else {
       await db.run("UPDATE transactions SET status = 'INITIATED' WHERE reference = ?", [orderReference]);
-      return res.redirect(`/index.html?ref=${orderReference}&status=cancelled`);
+      return res.send(`
+        <script>
+          window.parent.location.href = "/index.html?ref=${orderReference}&status=cancelled";
+        </script>
+      `);
     }
   } catch (err) {
     console.error('[FLUTTERWAVE CALLBACK ERROR]', err);
