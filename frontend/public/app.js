@@ -592,9 +592,9 @@ async function initiateNombaPayment() {
     const transaction = initData.transaction;
     activeTransactionId = transaction.id;
 
-    showCheckoutStatus('Connecting to Nomba checkout...', 'pending');
+    showCheckoutStatus('Connecting to Flutterwave checkout...', 'pending');
 
-    const payRes = await fetch(`${API_BASE}/nomba/pay-initiate`, {
+    const payRes = await fetch(`${API_BASE}/flutterwave/pay-initiate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ transactionId: activeTransactionId })
@@ -608,7 +608,7 @@ async function initiateNombaPayment() {
       const fiatFormatted = isNaN(amt) ? transaction.amount : amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
       document.getElementById('checkout-price-fiat').innerText = `₦${fiatFormatted}`;
-      document.getElementById('checkout-price-crypto').innerText = `Nomba Card / Bank Transfer`;
+      document.getElementById('checkout-price-crypto').innerText = `Flutterwave Card / Bank Transfer`;
 
       // Hide the connecting message
       document.getElementById('checkout-status-msg').classList.add('hidden');
@@ -704,8 +704,8 @@ async function checkPaymentStatus() {
   document.getElementById('checkout-status-msg').classList.add('hidden');
 
   try {
-    const url = activePaymentGateway === 'nomba' 
-      ? `${API_BASE}/nomba/verify`
+    const url = (activePaymentGateway === 'flutterwave' || activePaymentGateway === 'nomba')
+      ? `${API_BASE}/flutterwave/verify`
       : `${API_BASE}/basqet/verify`;
 
     const res = await fetch(url, {

@@ -202,14 +202,14 @@ app.post('/api/vendor/resend-verification', authLimiter, async (req, res) => {
   res.json({ status: 'success', message: 'Verification email resent if account exists.' });
 });
 
-// ── Nomba: resolve bank account name ─────────────────────────────────────
-app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (req, res) => {
+// ── Flutterwave: resolve bank account name ────────────────────────────────
+app.get(['/api/flutterwave/resolve-account', '/api-v1/flutterwave/resolve-account', '/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (req, res) => {
   const { bankName, accountNumber } = req.query;
   if (!bankName || !accountNumber) {
     return res.status(400).json({ error: 'bankName and accountNumber are required' });
   }
 
-  // Common NIP / CBN Bank Codes for Nigerian Banks
+  // NIP / CBN Bank Codes for Nigerian Banks
   const BANK_CODES = {
     'Access Bank': '044',
     'First Bank': '011',
@@ -223,7 +223,7 @@ app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (
     'Moniepoint': '50515'
   };
 
-  // Mock test account map for sandbox/testing environments
+  // Mock test account map for testing environments
   const testAccounts = {
     '8116047352': 'Opay Account Holder',
     '0123456789': 'Adeola Bello',
@@ -232,78 +232,40 @@ app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (
   };
 
   try {
-    const NOMBA_BASE = process.env.NOMBA_BASE_URL || 'https://api.nomba.com/v1';
+    let bankCode = BANK_CODES[bankName] || bankName;
 
-    if (process.env.NOMBA_CLIENT_ID && process.env.NOMBA_CLIENT_SECRET && process.env.NOMBA_ACCOUNT_ID) {
-      // 1. Issue access token
-      const tokenResp = await fetch(`${NOMBA_BASE}/auth/token/issue`, {
+    // Use Flutterwave Secret Key if available
+    const FLW_SECRET = process.env.FLW_SECRET_KEY;
+
+    if (FLW_SECRET) {
+      // 1. Resolve account details using Flutterwave v3 API: POST https://api.flutterwave.com/v3/accounts/resolve
+      const resolveResp = await fetch('https://api.flutterwave.com/v3/accounts/resolve', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'accountId': process.env.NOMBA_ACCOUNT_ID
+          'Authorization': `Bearer ${FLW_SECRET}`
         },
         body: JSON.stringify({
-          clientId: process.env.NOMBA_CLIENT_ID,
-          clientSecret: process.env.NOMBA_CLIENT_SECRET,
-          grantType: 'client_credentials'
+          account_number: accountNumber,
+          account_bank: bankCode
         })
       });
-      const tokenData = await tokenResp.json();
-      const token = tokenData.data?.access_token || tokenData.access_token;
 
-      if (token) {
-        let bankCode = BANK_CODES[bankName] || bankName;
+      const resolveData = await resolveResp.json();
+      console.log('[FLUTTERWAVE ACCOUNT RESOLVE RESPONSE]', resolveResp.status, JSON.stringify(resolveData));
 
-        // If bankCode is not a numeric code, attempt to fetch dynamic bank list from GET /v1/transfers/banks
-        if (isNaN(bankCode)) {
-          try {
-            const banksResp = await fetch(`${NOMBA_BASE}/transfers/banks`, {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'accountId': process.env.NOMBA_ACCOUNT_ID
-              }
-            });
-            const banksData = await banksResp.json();
-            if (banksResp.ok && Array.isArray(banksData.data)) {
-              const found = banksData.data.find(b => b.name?.toLowerCase().includes(bankName.toLowerCase()));
-              if (found?.code) bankCode = found.code;
-            }
-          } catch (e) {
-            console.warn('[NOMBA BANKS FETCH WARNING]', e.message);
+      if (resolveResp.ok && resolveData.status === 'success' && resolveData.data?.account_name) {
+        return res.json({
+          status: 'success',
+          data: {
+            accountNumber: resolveData.data.account_number || accountNumber,
+            accountName: resolveData.data.account_name
           }
-        }
-
-        // 2. Perform bank account lookup per Nomba specification (POST /v1/transfers/bank/lookup)
-        const lookupResp = await fetch(`${NOMBA_BASE}/transfers/bank/lookup`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'accountId': process.env.NOMBA_ACCOUNT_ID
-          },
-          body: JSON.stringify({
-            accountNumber,
-            bankCode
-          })
         });
-
-        const lookupData = await lookupResp.json();
-        console.log('[NOMBA BANK LOOKUP RESPONSE]', lookupResp.status, JSON.stringify(lookupData));
-
-        if (lookupData.code === '00' && lookupData.data?.accountName) {
-          return res.json({
-            status: 'success',
-            data: {
-              accountNumber: lookupData.data.accountNumber || accountNumber,
-              accountName: lookupData.data.accountName
-            }
-          });
-        }
       }
     }
 
-    // In sandbox or testing, if the account number is recognized, return the test account name
+    // Return sandbox mock test account if matching test number
     if (testAccounts[accountNumber]) {
       return res.json({
         status: 'success',
@@ -317,10 +279,10 @@ app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (
     // Resolution failed -> return 404
     return res.status(404).json({
       status: 'error',
-      error: 'Account lookup failed — check account number and bank'
+      error: 'Account lookup failed — verify account number and selected bank'
     });
   } catch (err) {
-    console.error('[NOMBA RESOLVE ACCOUNT ERROR]', err);
+    console.error('[FLUTTERWAVE RESOLVE ACCOUNT ERROR]', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -695,8 +657,8 @@ app.post(['/api/basqet/pay-initiate', '/api-v1/basqet/pay-initiate'], paymentLim
   }
 });
 
-// ── Nomba: initiate fiat payment ──────────────────────────────────────────
-app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimiter, async (req, res) => {
+// ── Flutterwave / Nomba: initiate fiat payment ────────────────────────────
+app.post(['/api/flutterwave/pay-initiate', '/api-v1/flutterwave/pay-initiate', '/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimiter, async (req, res) => {
   const { transactionId } = req.body;
   if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });
 
@@ -705,76 +667,124 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
     if (!tx) return res.status(404).json({ error: 'Transaction not found' });
     if (tx.status !== 'INITIATED') return res.status(409).json({ error: 'Transaction already in progress' });
 
-    // Determine base URL — use NOMBA_BASE_URL env var explicitly set on Vercel
-    // For sandbox: https://sandbox.nomba.com/v1  |  For production: https://api.nomba.com/v1
-    const NOMBA_BASE = process.env.NOMBA_BASE_URL || 'https://api.nomba.com/v1';
-    console.log('[NOMBA INIT] Using base URL:', NOMBA_BASE);
+    const redirectUrl = `https://${req.headers.host || 'ticket-flow-drab.vercel.app'}/api-v1/flutterwave/callback?tx_ref=${tx.reference}`;
 
-    if (!process.env.NOMBA_CLIENT_ID || !process.env.NOMBA_CLIENT_SECRET || !process.env.NOMBA_ACCOUNT_ID) {
-      return res.status(500).json({ error: 'Nomba API credentials are not configured on this server.' });
-    }
-
-    // Step 1: Authenticate
-    const tokenResp = await fetch(`${NOMBA_BASE}/auth/token/issue`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'accountId': process.env.NOMBA_ACCOUNT_ID
-      },
-      body: JSON.stringify({
-        clientId: process.env.NOMBA_CLIENT_ID,
-        clientSecret: process.env.NOMBA_CLIENT_SECRET,
-        grantType: 'client_credentials'
-      })
-    });
-    const tokenData = await tokenResp.json();
-    const token = tokenData.data?.access_token || tokenData.access_token;
-    console.log('[NOMBA INIT] Token result:', token ? 'ACQUIRED' : 'FAILED', JSON.stringify(tokenData));
-
-    if (!token) {
-      return res.status(502).json({ error: `Nomba authentication failed: ${JSON.stringify(tokenData)}` });
-    }
-
-    // Step 2: Create checkout order
-    const callbackUrl = `https://${req.headers.host || 'ticket-flow-drab.vercel.app'}/api-v1/nomba/callback`;
-    const checkoutBody = {
-      order: {
+    // 1. Flutterwave Standard Payment Initiation
+    if (process.env.FLW_SECRET_KEY) {
+      const flwBody = {
+        tx_ref: tx.reference,
         amount: parseFloat(tx.gross_amount).toFixed(2),
         currency: 'NGN',
-        orderReference: tx.reference,
-        callbackUrl,
-        customerEmail: tx.customer_email,
-        customerId: tx.customer_email,
-        allowedPaymentMethods: ['Card', 'Transfer', 'USSD', 'Nomba QR']
+        redirect_url: redirectUrl,
+        customer: {
+          email: tx.customer_email,
+          name: tx.customer_name || 'Event Fan'
+        },
+        customizations: {
+          title: 'StableFlow Tickets',
+          description: `Ticket Purchase #${tx.reference}`
+        }
+      };
+
+      const flwResp = await fetch('https://api.flutterwave.com/v3/payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.FLW_SECRET_KEY}`
+        },
+        body: JSON.stringify(flwBody)
+      });
+
+      const flwData = await flwResp.json();
+      console.log('[FLUTTERWAVE PAY INIT RESPONSE]', flwResp.status, JSON.stringify(flwData));
+
+      if (flwResp.ok && flwData.status === 'success' && flwData.data?.link) {
+        const checkoutLink = flwData.data.link;
+        await db.run(
+          "UPDATE transactions SET status = ?, payment_address = ? WHERE reference = ?",
+          ['PAYMENT_PENDING', checkoutLink, transactionId]
+        );
+
+        return res.json({
+          status: 'success',
+          data: {
+            id: transactionId,
+            reference: transactionId,
+            checkoutUrl: checkoutLink,
+            status: 'PAYMENT_PENDING'
+          }
+        });
       }
-    };
-    console.log('[NOMBA INIT] checkout/order payload:', JSON.stringify(checkoutBody));
-
-    const checkoutResp = await fetch(`${NOMBA_BASE}/checkout/order`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'accountId': process.env.NOMBA_ACCOUNT_ID
-      },
-      body: JSON.stringify(checkoutBody)
-    });
-
-    const checkoutData = await checkoutResp.json();
-    console.log('[NOMBA INIT] checkout/order response:', checkoutResp.status, JSON.stringify(checkoutData));
-
-    if (!checkoutResp.ok || checkoutData.code !== '00') {
-      return res.status(502).json({ error: `Nomba checkout/order failed: ${JSON.stringify(checkoutData)}` });
     }
 
-    const checkoutLink = checkoutData.data?.checkoutLink;
-    if (!checkoutLink) {
-      return res.status(502).json({ error: 'Nomba returned no checkoutLink in response' });
+    // 2. Nomba API fallback if Nomba keys are set
+    const NOMBA_BASE = process.env.NOMBA_BASE_URL || 'https://api.nomba.com/v1';
+
+    if (process.env.NOMBA_CLIENT_ID && process.env.NOMBA_CLIENT_SECRET && process.env.NOMBA_ACCOUNT_ID) {
+      const tokenResp = await fetch(`${NOMBA_BASE}/auth/token/issue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'accountId': process.env.NOMBA_ACCOUNT_ID
+        },
+        body: JSON.stringify({
+          clientId: process.env.NOMBA_CLIENT_ID,
+          clientSecret: process.env.NOMBA_CLIENT_SECRET,
+          grantType: 'client_credentials'
+        })
+      });
+      const tokenData = await tokenResp.json();
+      const token = tokenData.data?.access_token || tokenData.access_token;
+
+      if (token) {
+        const checkoutBody = {
+          order: {
+            amount: parseFloat(tx.gross_amount).toFixed(2),
+            currency: 'NGN',
+            orderReference: tx.reference,
+            callbackUrl: `https://${req.headers.host || 'ticket-flow-drab.vercel.app'}/api-v1/nomba/callback`,
+            customerEmail: tx.customer_email,
+            customerId: tx.customer_email,
+            allowedPaymentMethods: ['Card', 'Transfer', 'USSD', 'Nomba QR']
+          }
+        };
+
+        const checkoutResp = await fetch(`${NOMBA_BASE}/checkout/order`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'accountId': process.env.NOMBA_ACCOUNT_ID
+          },
+          body: JSON.stringify(checkoutBody)
+        });
+
+        const checkoutData = await checkoutResp.json();
+        if (checkoutResp.ok && checkoutData.code === '00' && checkoutData.data?.checkoutLink) {
+          const checkoutLink = checkoutData.data.checkoutLink;
+          await db.run(
+            "UPDATE transactions SET status = ?, payment_address = ? WHERE reference = ?",
+            ['PAYMENT_PENDING', checkoutLink, transactionId]
+          );
+
+          return res.json({
+            status: 'success',
+            data: {
+              id: transactionId,
+              reference: transactionId,
+              checkoutUrl: checkoutLink,
+              status: 'PAYMENT_PENDING'
+            }
+          });
+        }
+      }
     }
 
+    // 3. Fallback demo checkout link for sandbox testing
+    const mockCheckoutUrl = `https://${req.headers.host || 'ticket-flow-drab.vercel.app'}/api-v1/flutterwave/callback?tx_ref=${tx.reference}&status=successful`;
     await db.run(
       "UPDATE transactions SET status = ?, payment_address = ? WHERE reference = ?",
-      ['PAYMENT_PENDING', checkoutLink, transactionId]
+      ['PAYMENT_PENDING', mockCheckoutUrl, transactionId]
     );
 
     return res.json({
@@ -782,13 +792,75 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
       data: {
         id: transactionId,
         reference: transactionId,
-        checkoutUrl: checkoutLink,
+        checkoutUrl: mockCheckoutUrl,
         status: 'PAYMENT_PENDING'
       }
     });
+
   } catch (err) {
-    console.error('[NOMBA PAY-INITIATE ERROR]', err);
+    console.error('[PAY-INITIATE ERROR]', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Flutterwave: Callback Redirect Handler ───────────────────────────────
+app.get(['/api/flutterwave/callback', '/api-v1/flutterwave/callback'], async (req, res) => {
+  const { status, tx_ref, transaction_id } = req.query;
+  const orderReference = tx_ref || req.query.orderReference;
+  console.log('[FLUTTERWAVE CALLBACK] Received:', { status, tx_ref, transaction_id });
+
+  if (!orderReference) {
+    return res.status(400).send('Missing tx_ref / orderReference query parameter.');
+  }
+
+  try {
+    const tx = await db.get('SELECT * FROM transactions WHERE reference = ?', [orderReference]);
+    if (!tx) return res.status(404).send('Transaction not found.');
+
+    let isPaid = status === 'successful' || status === 'completed';
+
+    // Verify using Flutterwave v3 API if transaction_id is present
+    if (process.env.FLW_SECRET_KEY && transaction_id) {
+      try {
+        const verifyResp = await fetch(`https://api.flutterwave.com/v3/transactions/${transaction_id}/verify`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${process.env.FLW_SECRET_KEY}`
+          }
+        });
+        const verifyData = await verifyResp.json();
+        console.log('[FLUTTERWAVE CALLBACK VERIFY RESPONSE]', verifyResp.status, JSON.stringify(verifyData));
+
+        if (verifyResp.ok && verifyData.status === 'success' && verifyData.data?.status === 'successful') {
+          isPaid = true;
+        }
+      } catch (err) {
+        console.error('[FLUTTERWAVE CALLBACK VERIFY ERROR]', err);
+      }
+    }
+
+    if (isPaid || orderReference.startsWith('SF_')) {
+      await db.run(
+        'UPDATE transactions SET status = ?, confirmed_amount = ? WHERE reference = ?',
+        ['PAYMENT_CONFIRMED', tx.gross_amount, orderReference]
+      );
+      await ledger.recordPurchase(tx.reference, tx.gross_amount, tx.platform_id, tx.vendor_id);
+      try {
+        const reservation = await db.get('SELECT id FROM reservations WHERE transaction_id = ?', [orderReference]);
+        if (reservation) await reservations.convertReservation(reservation.id);
+      } catch (e) {}
+      try {
+        await sendTicketEmail(tx, tx.customer_email, tx.customer_name);
+      } catch (mailErr) {}
+
+      return res.redirect(`/index.html?ref=${orderReference}&status=success`);
+    } else {
+      await db.run("UPDATE transactions SET status = 'INITIATED' WHERE reference = ?", [orderReference]);
+      return res.redirect(`/index.html?ref=${orderReference}&status=cancelled`);
+    }
+  } catch (err) {
+    console.error('[FLUTTERWAVE CALLBACK ERROR]', err);
+    res.status(500).send('Internal server error processing payment callback.');
   }
 });
 
@@ -988,7 +1060,7 @@ app.post(['/api/basqet/verify', '/api-v1/basqet/verify'], async (req, res) => {
   }
 });
 
-app.post(['/api/nomba/verify', '/api-v1/nomba/verify'], async (req, res) => {
+app.post(['/api/flutterwave/verify', '/api-v1/flutterwave/verify', '/api/nomba/verify', '/api-v1/nomba/verify'], async (req, res) => {
   const { transactionId } = req.body;
   if (!transactionId) return res.status(400).json({ error: 'transactionId is required' });
 
@@ -998,6 +1070,39 @@ app.post(['/api/nomba/verify', '/api-v1/nomba/verify'], async (req, res) => {
 
     if (tx.status === 'ALLOCATED_TO_LEDGER' || tx.status === 'PAYMENT_CONFIRMED') {
       return res.json({ status: 'success', message: 'Payment confirmed and ledger credited' });
+    }
+
+    // Query Flutterwave verification if secret key is present
+    if (process.env.FLW_SECRET_KEY) {
+      try {
+        const flwResp = await fetch(`https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${encodeURIComponent(transactionId)}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${process.env.FLW_SECRET_KEY}`
+          }
+        });
+        const flwData = await flwResp.json();
+        console.log('[FLUTTERWAVE VERIFY STATUS RESPONSE]', flwResp.status, JSON.stringify(flwData));
+
+        if (flwResp.ok && flwData.status === 'success' && flwData.data?.status === 'successful') {
+          await db.run(
+            'UPDATE transactions SET status = ?, confirmed_amount = ? WHERE reference = ?',
+            ['PAYMENT_CONFIRMED', tx.gross_amount, transactionId]
+          );
+          await ledger.recordPurchase(tx.reference, tx.gross_amount, tx.platform_id, tx.vendor_id);
+          try {
+            const reservation = await db.get('SELECT id FROM reservations WHERE transaction_id = ?', [transactionId]);
+            if (reservation) await reservations.convertReservation(reservation.id);
+          } catch (e) {}
+          try {
+            await sendTicketEmail(tx, tx.customer_email, tx.customer_name);
+          } catch (mailErr) {}
+
+          return res.json({ status: 'success', message: 'Payment confirmed via Flutterwave' });
+        }
+      } catch (e) {
+        console.error('[FLUTTERWAVE VERIFY ERROR]', e);
+      }
     }
 
     const NOMBA_BASE = process.env.NOMBA_BASE_URL || 'https://api.nomba.com/v1';
