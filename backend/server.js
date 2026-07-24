@@ -570,6 +570,8 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
     console.error('[NOMBA PAY-INITIATE FATAL]', err);
     res.status(500).json({ error: err.message });
   }
+});
+
 // ── Nomba: Callback Redirect Handler ──────────────────────────────────────
 app.get(['/api/nomba/callback', '/api-v1/nomba/callback'], async (req, res) => {
   const { orderId, orderReference } = req.query;
