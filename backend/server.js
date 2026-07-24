@@ -100,10 +100,12 @@ const webhookLimiter = rateLimit({
   message: { error: 'Webhook rate limit exceeded.' }
 });
 
-// ── Static file serving ───────────────────────────────────────────────────
-app.use('/admin', requireAdmin, express.static(path.join(__dirname, '../frontend/admin')));
-app.use('/portal', express.static(path.join(__dirname, '../frontend/portal')));
-app.use(express.static(path.join(__dirname, '../frontend/public')));
+// ── Static file serving (Registered AFTER API routes) ──────────────────────
+const registerStaticRoutes = () => {
+  app.use('/admin', requireAdmin, express.static(path.join(__dirname, '../frontend/admin')));
+  app.use('/portal', express.static(path.join(__dirname, '../frontend/portal')));
+  app.use(express.static(path.join(__dirname, '../frontend/public')));
+};
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 app.post('/api/auth/login', authLimiter, async (req, res) => {
@@ -1267,6 +1269,8 @@ app.patch('/api/admin/events/:id', requireAdmin, async (req, res) => {
 
 
 // ── Boot ─────────────────────────────────────────────────────────────────────
+registerStaticRoutes();
+
 if (process.env.NODE_ENV !== 'production') {
   db.initDb().then(() => {
     app.listen(PORT, () => {
