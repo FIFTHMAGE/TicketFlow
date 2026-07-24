@@ -618,6 +618,7 @@ app.get(['/api/nomba/callback', '/api-v1/nomba/callback'], async (req, res) => {
             }
           });
           const statusData = await statusResp.json();
+          console.log('[NOMBA CALLBACK VERIFY] status check response:', statusResp.status, JSON.stringify(statusData));
           if (statusResp.ok && statusData.code === '00') {
             const txStatus = statusData.data?.status;
             if (txStatus === 'SUCCESS' || txStatus === 'SUCCESSFUL') {
