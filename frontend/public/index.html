@@ -499,6 +499,27 @@
   .modal-overlay.active .checkout-card {
     transform: scale(1);
   }
+  @media (max-width: 480px) {
+    .modal-overlay {
+      align-items: flex-end;
+    }
+    .checkout-card {
+      width: 100% !important;
+      max-width: 100% !important;
+      border-radius: 20px 20px 0 0 !important;
+      border-left: none !important;
+      border-right: none !important;
+      border-bottom: none !important;
+      padding: 20px 16px 32px !important;
+      max-height: 88vh;
+      overflow-y: auto;
+      transform: translateY(100%) !important;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    .modal-overlay.active .checkout-card {
+      transform: translateY(0) !important;
+    }
+  }
   .checkout-header {
     display: flex;
     justify-content: space-between;
