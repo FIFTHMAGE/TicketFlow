@@ -99,7 +99,25 @@
     font-weight:600;
     font-size:0.88rem;
   }
-  @media (max-width:760px){ .nav-links{display:none;} }
+  @media (max-width:760px){
+    .nav-inner {
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px 20px;
+    }
+    .nav-links {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      font-size: 0.85rem;
+      width: 100%;
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+    }
+    .nav-cta {
+      display: none;
+    }
+  }
 
   /* ---------- HERO ---------- */
   .hero{
