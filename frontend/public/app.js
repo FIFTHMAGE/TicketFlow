@@ -619,6 +619,17 @@ async function initiateNombaPayment() {
         document.getElementById('nomba-iframe-container').classList.remove('hidden');
         document.getElementById('qr-code-box').classList.add('hidden');
         document.getElementById('address-container-box').classList.add('hidden');
+
+        // Hide checkout header title, back buttons, and reservation hold timer banner completely
+        const timerBanner = document.getElementById('reservation-timer-banner');
+        if (timerBanner) {
+          timerBanner.style.setProperty('display', 'none', 'important');
+          timerBanner.style.display = 'none';
+        }
+        const backBtn = document.getElementById('checkout-back-btn');
+        if (backBtn) backBtn.style.setProperty('display', 'none', 'important');
+        const titleEl = document.getElementById('checkout-title');
+        if (titleEl) titleEl.innerText = ''; // Empty title to let the iframe cover the area cleanly
       } else {
         document.getElementById('deposit-address').value = details.bank_account;
         document.getElementById('nomba-iframe-container').classList.add('hidden');
