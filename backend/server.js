@@ -254,19 +254,22 @@ app.delete('/api/reserve/:id', async (req, res) => {
 
 app.get(['/api/public-stats', '/api-v1/public-stats'], async (req, res) => {
   try {
-    const pool = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'SETTLEMENT_POOL'");
+    const pool    = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'SETTLEMENT_POOL'");
     const revenue = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'PLATFORM_REVENUE'");
     const entries = await db.all("SELECT * FROM ledger_entries ORDER BY created_at DESC LIMIT 5");
 
     res.json({
-      poolBalance: pool ? pool.balance : 0,
-      revenueBalance: revenue ? revenue.balance : 0,
-      latestEntries: entries
+      poolBalance:    pool    ? parseFloat(pool.balance)    : 0,
+      revenueBalance: revenue ? parseFloat(revenue.balance) : 0,
+      latestEntries:  Array.isArray(entries) ? entries : []
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[PUBLIC-STATS ERROR]', err.message);
+    // Return safe zeros so the frontend doesn't crash
+    res.json({ poolBalance: 0, revenueBalance: 0, latestEntries: [], _error: err.message });
   }
 });
+
 
 // ── Checkout: initiate purchase ───────────────────────────────────────────
 // ── Checkout: convert reservation → transaction ───────────────────────────
@@ -336,6 +339,7 @@ app.post(['/api/purchase', '/api-v1/purchase'], paymentLimiter, async (req, res)
       }
     });
   } catch (err) {
+    console.error('[PURCHASE ERROR]', err.message, err.stack);
     res.status(500).json({ error: err.message });
   }
 });

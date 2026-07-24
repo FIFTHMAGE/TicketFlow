@@ -187,34 +187,40 @@ async function loadEvents() {
 async function loadPublicStats() {
   try {
     const res = await fetch(`${API_BASE}/public-stats`);
+    if (!res.ok) return; // silently skip on server error
     const data = await res.json();
+    if (!data || data.error) return; // guard against error response
 
-    // Update mockup balances
-    document.getElementById('mockup-pool-bal').innerText = `₦${data.poolBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-    document.getElementById('mockup-rev-bal').innerText = `₦${data.revenueBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+    const poolBal = parseFloat(data.poolBalance) || 0;
+    const revBal  = parseFloat(data.revenueBalance) || 0;
 
-    // Update mockup ledger journal logs
+    const poolEl = document.getElementById('mockup-pool-bal');
+    const revEl  = document.getElementById('mockup-rev-bal');
+    if (poolEl) poolEl.innerText = `₦${poolBal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+    if (revEl)  revEl.innerText  = `₦${revBal.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+
     const list = document.getElementById('mockup-ledger-list');
-    if (data.latestEntries.length === 0) {
+    if (!list) return;
+    const entries = data.latestEntries || [];
+    if (entries.length === 0) {
       list.innerHTML = `<div class="ledger-line"><span class="ledger-status pending"></span>No ledger entries.</div>`;
     } else {
       list.innerHTML = '';
-      data.latestEntries.forEach(entry => {
+      entries.forEach(entry => {
         const line = document.createElement('div');
         line.className = 'ledger-line';
         const isDebit = entry.type === 'DEBIT';
         const dotClass = isDebit ? 'ledger-status' : 'ledger-status pending';
-        
+        const amt = parseFloat(entry.amount) || 0;
         line.innerHTML = `
           <span class="${dotClass}"></span>
-          <span>${entry.account_id} — ${entry.type.toLowerCase()} — ₦${entry.amount.toLocaleString()}</span>
+          <span>${entry.account_id} — ${entry.type?.toLowerCase()} — ₦${amt.toLocaleString()}</span>
         `;
         list.appendChild(line);
       });
     }
 
-    // Render interactive ticker with real ledger values if available
-    renderTicker(data.latestEntries);
+    renderTicker(entries);
   } catch (err) {
     console.error('Error loading stats:', err);
   }
@@ -494,8 +500,12 @@ async function initiateNombaPayment() {
       body: JSON.stringify({ eventId: activeEvent, customerName, customerEmail, reservationId: activeReservationId })
     });
     const initData = await res.json();
+    if (!res.ok || !initData.transaction) {
+      showCheckoutStatus(`❌ ${initData.error || 'Failed to create transaction. Please try again.'}`, 'error');
+      setProceedButtonLoading(false);
+      return;
+    }
     const transaction = initData.transaction;
-    
     activeTransactionId = transaction.id;
 
     showCheckoutStatus('Connecting to Nomba checkout...', 'pending');
