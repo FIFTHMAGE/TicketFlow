@@ -740,6 +740,10 @@ async function checkPaymentStatus() {
       const backBtn = document.getElementById('checkout-back-btn');
       if (backBtn) backBtn.style.setProperty('display', 'none', 'important');
 
+      // Scroll to top of modal for clean alignment
+      const card = document.querySelector('.checkout-card');
+      if (card) card.scrollTop = 0;
+
       // Dynamically load the client-side QRCode library if not loaded
       if (typeof QRCode === 'undefined') {
         const script = document.createElement('script');
@@ -783,6 +787,14 @@ async function checkPaymentStatus() {
 }
 
 function drawTicketQR(reference) {
+  // Strip duplicate card backgrounds/borders
+  const qrAddressCard = document.querySelector('.qr-address-card');
+  if (qrAddressCard) {
+    qrAddressCard.style.background = 'transparent';
+    qrAddressCard.style.border = 'none';
+    qrAddressCard.style.padding = '0';
+  }
+
   const qrBox = document.getElementById('qr-code-box');
   qrBox.innerHTML = `
     <canvas id="ticket-qr-canvas" style="border-radius: 8px; background: #fff; padding: 12px; margin-bottom: 16px;"></canvas>
