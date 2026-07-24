@@ -34,6 +34,7 @@ async function loadBasqetCurrencies() {
       const emoji = emojiMap[c.slug?.toUpperCase()] || '💠';
       const opt = document.createElement('option');
       opt.value = c.id;
+      opt.dataset.slug = c.slug?.toUpperCase();
       opt.textContent = `${emoji}  ${c.slug} — ${c.name}`;
       select.appendChild(opt);
     });
@@ -54,13 +55,31 @@ async function loadBasqetCurrencies() {
   }
 }
 
+// Networks available per token slug
+const NETWORK_MAP = {
+  USDT:  [{ id: 'trc20', label: 'TRON (TRC20)' }, { id: 'erc20', label: 'Ethereum (ERC20)' }, { id: 'bep20', label: 'BNB Chain (BEP20)' }],
+  USDC:  [{ id: 'erc20', label: 'Ethereum (ERC20)' }, { id: 'bep20', label: 'BNB Chain (BEP20)' }],
+  BTC:   [{ id: 'bitcoin', label: 'Bitcoin Network' }],
+  ETH:   [{ id: 'erc20', label: 'Ethereum (ERC20)' }],
+  LTC:   [{ id: 'litecoin', label: 'Litecoin Network' }],
+  BNB:   [{ id: 'bep20', label: 'BNB Chain (BEP20)' }],
+  SOL:   [{ id: 'solana', label: 'Solana Network' }],
+  XRP:   [{ id: 'xrp', label: 'XRP Ledger' }],
+  DOGE:  [{ id: 'dogecoin', label: 'Dogecoin Network' }],
+  MATIC: [{ id: 'polygon', label: 'Polygon (MATIC)' }],
+  TRX:   [{ id: 'tron', label: 'TRON Network' }],
+  QDX:   [{ id: 'erc20', label: 'Ethereum (ERC20)' }],
+};
+
 function toggleBasqetDropdown() {
   const select = document.getElementById('basqet-currency-select');
+  const networkSel = document.getElementById('basqet-network-select');
   const btn = document.getElementById('basqet-crypto-btn');
   const isVisible = select.style.display !== 'none';
 
   if (isVisible) {
     select.style.display = 'none';
+    networkSel.style.display = 'none';
   } else {
     // Deselect Nomba
     document.querySelectorAll('.crypto-btn').forEach(b => {
@@ -76,9 +95,41 @@ function toggleBasqetDropdown() {
 
 function onBasqetCurrencyChange(sel) {
   const currencyId = parseInt(sel.value);
-  const label = sel.options[sel.selectedIndex]?.text || 'Crypto via Basqet';
+  const selectedOpt = sel.options[sel.selectedIndex];
+  const tokenLabel = selectedOpt?.text || 'Crypto via Basqet';
+  const slug = selectedOpt?.dataset?.slug || '';
 
-  document.getElementById('basqet-selected-label').textContent = label;
+  document.getElementById('basqet-selected-label').textContent = tokenLabel;
+
+  // Reset network selection
+  selectedGateway = 'basqet';
+  selectedCurrencyId = null;
+  document.getElementById('proceed-button-container').classList.add('hidden');
+
+  // Populate network dropdown
+  const networks = NETWORK_MAP[slug?.toUpperCase()] || [{ id: 'default', label: 'Default Network' }];
+  const networkSel = document.getElementById('basqet-network-select');
+  networkSel.innerHTML = `<option value="" disabled selected>② Select a network / chain...</option>`;
+  networks.forEach(n => {
+    const opt = document.createElement('option');
+    opt.value = n.id;
+    opt.textContent = n.label;
+    opt.dataset.currencyId = currencyId;
+    networkSel.appendChild(opt);
+  });
+  networkSel.style.display = 'block';
+}
+
+function onBasqetNetworkChange(sel) {
+  const currencyId = parseInt(sel.options[sel.selectedIndex]?.dataset.currencyId);
+  const networkLabel = sel.options[sel.selectedIndex]?.text || '';
+  const tokenLabel = document.getElementById('basqet-selected-label')?.textContent || 'Crypto';
+
+  // Update button label to show token + network
+  const shortToken = tokenLabel.replace(/.*?\s+(\w+)\s+—.*/, '$1').trim();
+  document.getElementById('basqet-selected-label').textContent =
+    `${shortToken} via ${networkLabel}`;
+
   selectedGateway = 'basqet';
   selectedCurrencyId = currencyId;
 

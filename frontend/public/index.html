@@ -1085,20 +1085,31 @@
           
           <div style="text-align: center; margin: 2px 0; color: var(--sand); font-size: 11px;">— OR PAY WITH CRYPTO —</div>
 
-          <!-- Basqet crypto: single button + dropdown -->
+          <!-- Basqet crypto: token + network dropdowns -->
           <button id="basqet-crypto-btn" class="crypto-btn" onclick="toggleBasqetDropdown()">
             <span style="font-size: 20px; margin-right: 5px;">💠</span>
             <span id="basqet-selected-label">Select Crypto via Basqet</span>
             <span style="margin-left: auto; font-size: 12px; opacity: 0.6;">▾</span>
           </button>
 
+          <!-- Step 1: Token -->
           <select id="basqet-currency-select"
             onchange="onBasqetCurrencyChange(this)"
-            style="display: none; width: 100%; padding: 12px 14px; background: #1a1d2e;
+            style="display: none; width: 100%; padding: 11px 14px; background: #1a1d2e;
                    border: 1px solid var(--line); border-radius: 10px; color: var(--off-white);
                    font-family: 'Space Grotesk', sans-serif; font-size: 0.88rem;
                    cursor: pointer; outline: none; appearance: none; -webkit-appearance: none;">
-            <option value="" disabled selected>Select a token...</option>
+            <option value="" disabled selected>① Select a token...</option>
+          </select>
+
+          <!-- Step 2: Network (shown after token is picked) -->
+          <select id="basqet-network-select"
+            onchange="onBasqetNetworkChange(this)"
+            style="display: none; width: 100%; padding: 11px 14px; background: #1a1d2e;
+                   border: 1px solid var(--green); border-radius: 10px; color: var(--off-white);
+                   font-family: 'Space Grotesk', sans-serif; font-size: 0.88rem;
+                   cursor: pointer; outline: none; appearance: none; -webkit-appearance: none;">
+            <option value="" disabled selected>② Select a network / chain...</option>
           </select>
         </div>
 
