@@ -709,7 +709,11 @@ async function checkPaymentStatus() {
       
       // Stop the reservation hold timer since order is complete
       if (countdownInterval) clearInterval(countdownInterval);
-      document.getElementById('reservation-timer-banner').style.display = 'none';
+      const timerBanner = document.getElementById('reservation-timer-banner');
+      if (timerBanner) {
+        timerBanner.style.setProperty('display', 'none', 'important');
+        timerBanner.style.display = 'none';
+      }
 
       // Clean up layout container states to show ticket details card
       document.getElementById('nomba-iframe-container').classList.add('hidden');
@@ -717,11 +721,13 @@ async function checkPaymentStatus() {
       document.getElementById('address-container-box').classList.add('hidden');
       document.getElementById('basqet-summary-container').classList.add('hidden');
       document.getElementById('basqet-verify-buttons-container').classList.add('hidden');
-      document.getElementById('checkout-title').innerText = 'Ticket Issued';
+      
+      const titleEl = document.getElementById('checkout-title');
+      if (titleEl) titleEl.innerText = 'Ticket Issued';
 
       // Hide Back button on success page
       const backBtn = document.getElementById('checkout-back-btn');
-      if (backBtn) backBtn.style.display = 'none';
+      if (backBtn) backBtn.style.setProperty('display', 'none', 'important');
 
       // Dynamically load the client-side QRCode library if not loaded
       if (typeof QRCode === 'undefined') {
