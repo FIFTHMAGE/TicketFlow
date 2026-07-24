@@ -769,7 +769,7 @@ function showSuccessTicketView() {
   ticketDisplay.innerHTML = `
     <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
       <div style="width: 100%; text-align: center; background: rgba(146, 203, 60, 0.08); border: 1px solid var(--green); border-radius: 8px; padding: 12px; margin-bottom: 20px; color: #92cb3c; font-size: 0.9rem; font-weight: 600;">
-        ✦ Payment Confirmed!
+        Payment Confirmed!
       </div>
       <div id="success-qr-box" style="margin-bottom: 20px; display: flex; justify-content: center; width: 100%;">
         <canvas id="ticket-qr-canvas" style="border-radius: 8px; background: #fff; padding: 12px;"></canvas>
