@@ -221,8 +221,8 @@ ON CONFLICT (id) DO NOTHING;
 -- IMPORTANT: These use bcrypt hashes of 'password123' and 'finance123'.
 -- Change these passwords immediately after first login.
 INSERT INTO admins (username, password_hash, role) VALUES
-  ('admin',   '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ADMIN'),
-  ('finance', '$2a$10$dAbE2UoJj6Pof7.bNRnFOucQQE53pJnHsEhIqf0k8JNAV0Wf.IXW', 'FINANCE')
+  ('admin',   '$2b$10$Lp4WfVKb1OMMra1UQJyx1OgzukCJJSmVajUbP9jaVCBN26G/e6jlW', 'ADMIN'),
+  ('finance', '$2b$10$GUhIg0U1Kw69qWO5hUSNQ.289VLosI2CGixmctdUX5c8yNtdI4pYi', 'FINANCE')
 ON CONFLICT (username) DO NOTHING;
 
 -- ============================================================
