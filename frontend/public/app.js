@@ -9,10 +9,10 @@ window.addEventListener('DOMContentLoaded', () => {
   loadPublicStats();
   loadBasqetCurrencies();
   
-  // Periodically refresh public stats mockup panel (every 3 seconds)
+  // Periodically refresh public stats mockup panel (every 15 seconds)
   setInterval(() => {
     loadPublicStats();
-  }, 3000);
+  }, 15000);
 
   // Check URL params for successful redirected callback (e.g. from Nomba callback)
   const urlParams = new URLSearchParams(window.location.search);
