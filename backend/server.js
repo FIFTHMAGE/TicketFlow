@@ -570,7 +570,29 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
     console.error('[NOMBA PAY-INITIATE FATAL]', err);
     res.status(500).json({ error: err.message });
   }
+// ── Nomba: Callback Redirect Handler ──────────────────────────────────────
+app.get(['/api/nomba/callback', '/api-v1/nomba/callback'], async (req, res) => {
+  const { orderId, orderReference } = req.query;
+  console.log('[NOMBA CALLBACK] Received:', { orderId, orderReference });
+
+  if (!orderReference) {
+    return res.status(400).send('Missing orderReference query parameter.');
+  }
+
+  try {
+    const tx = await db.get('SELECT * FROM transactions WHERE reference = ?', [orderReference]);
+    if (!tx) {
+      return res.status(404).send('Transaction not found.');
+    }
+
+    // Redirect the customer back to the checkout UI with a success state
+    return res.redirect(`/index.html?ref=${orderReference}&status=success`);
+  } catch (err) {
+    console.error('[NOMBA CALLBACK ERROR]', err);
+    return res.status(500).send('Internal server error.');
+  }
 });
+
 
 // ── Simulation confirmations (gated behind requireAdmin for security) ───────
 app.post(['/api/basqet/confirm-simulation', '/api-v1/basqet/confirm-simulation'], async (req, res) => {
