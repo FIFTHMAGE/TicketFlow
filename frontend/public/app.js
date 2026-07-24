@@ -361,15 +361,27 @@ async function initiatePayment(currencyId) {
   const customerEmail = document.getElementById('checkout-customer-email').value.trim();
 
   if (!customerName || !customerEmail) {
-    alert('Please enter your name and email address to continue.');
+    showCheckoutStatus('Please enter your name and email address to continue.', 'error');
     return;
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
-    alert('Please enter a valid email address.');
+    showCheckoutStatus('Please enter a valid email address.', 'error');
     return;
   }
 
   setProceedButtonLoading(true);
+
+  // Switch screens early and hide QR details container until loaded
+  document.getElementById('checkout-step-init').classList.add('hidden');
+  document.getElementById('checkout-step-pay').classList.remove('hidden');
+  document.getElementById('checkout-title').innerText = 'Complete Payment';
+  
+  // Hide visual payment boxes during loading so user doesn't see a blank placeholder
+  document.getElementById('qr-code-box').classList.add('hidden');
+  document.getElementById('address-container-box').classList.add('hidden');
+  document.getElementById('nomba-iframe-container').classList.add('hidden');
+  
+  showCheckoutStatus('Preparing payment request...', 'pending');
 
   try {
     // 1. Reserve the ticket first
@@ -381,7 +393,7 @@ async function initiatePayment(currencyId) {
       });
       const resData = await resVal.json();
       if (!resVal.ok) {
-        alert(resData.error || 'Failed to reserve ticket');
+        showCheckoutStatus(resData.error || 'Failed to reserve ticket. Please try again.', 'error');
         return;
       }
       activeReservationId = resData.reservationId;
@@ -395,9 +407,15 @@ async function initiatePayment(currencyId) {
       body: JSON.stringify({ eventId: activeEvent, customerName, customerEmail, reservationId: activeReservationId })
     });
     const initData = await res.json();
+    if (!res.ok || !initData.transaction) {
+      showCheckoutStatus(`❌ ${initData.error || 'Failed to create transaction. Please try again.'}`, 'error');
+      return;
+    }
     const transaction = initData.transaction;
     
     activeTransactionId = transaction.id;
+
+    showCheckoutStatus('Generating deposit address from Basqet...', 'pending');
 
     const payRes = await fetch(`${API_BASE}/basqet/pay-initiate`, {
       method: 'POST',
@@ -437,19 +455,16 @@ async function initiatePayment(currencyId) {
         qrBox.innerHTML = `<div class="mock-qr">${ticker} QR</div>`;
       }
 
-      document.getElementById('nomba-iframe-container').classList.add('hidden');
+      // Hide loading status overlay and reveal address/QR card
+      document.getElementById('checkout-status-msg').classList.add('hidden');
       document.getElementById('qr-code-box').classList.remove('hidden');
       document.getElementById('address-container-box').classList.remove('hidden');
-
-      document.getElementById('checkout-title').innerText = 'Complete Payment';
-      document.getElementById('checkout-step-init').classList.add('hidden');
-      document.getElementById('checkout-step-pay').classList.remove('hidden');
     } else {
-      alert(payData.error || 'Failed to initialize payment session');
+      showCheckoutStatus(`❌ ${payData.error || 'Failed to initialize payment session'}`, 'error');
     }
   } catch (err) {
     console.error('Error initiating checkout:', err);
-    alert('Failed to initialize checkout session');
+    showCheckoutStatus(`❌ Network error: ${err.message}`, 'error');
   } finally {
     setProceedButtonLoading(false);
   }
