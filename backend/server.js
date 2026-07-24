@@ -635,6 +635,38 @@ app.post(['/api/nomba/pay-initiate', '/api-v1/nomba/pay-initiate'], paymentLimit
       body: JSON.stringify(checkoutBody)
     });
 
+    const checkoutData = await checkoutResp.json();
+    console.log('[NOMBA INIT] checkout/order response:', checkoutResp.status, JSON.stringify(checkoutData));
+
+    if (!checkoutResp.ok || checkoutData.code !== '00') {
+      return res.status(502).json({ error: `Nomba checkout/order failed: ${JSON.stringify(checkoutData)}` });
+    }
+
+    const checkoutLink = checkoutData.data?.checkoutLink;
+    if (!checkoutLink) {
+      return res.status(502).json({ error: 'Nomba returned no checkoutLink in response' });
+    }
+
+    await db.run(
+      "UPDATE transactions SET status = ?, payment_address = ? WHERE reference = ?",
+      ['PAYMENT_PENDING', checkoutLink, transactionId]
+    );
+
+    return res.json({
+      status: 'success',
+      data: {
+        id: transactionId,
+        reference: transactionId,
+        checkoutUrl: checkoutLink,
+        status: 'PAYMENT_PENDING'
+      }
+    });
+  } catch (err) {
+    console.error('[NOMBA PAY-INITIATE ERROR]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Nomba: resolve bank account name ─────────────────────────────────────
 app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (req, res) => {
   const { bankName, accountNumber } = req.query;
@@ -701,40 +733,6 @@ app.get(['/api/nomba/resolve-account', '/api-v1/nomba/resolve-account'], async (
     });
   } catch (err) {
     console.error('[NOMBA RESOLVE ACCOUNT ERROR]', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-    const checkoutData = await checkoutResp.json();
-    console.log('[NOMBA INIT] checkout/order response:', checkoutResp.status, JSON.stringify(checkoutData));
-
-    if (!checkoutResp.ok || checkoutData.code !== '00') {
-      return res.status(502).json({ error: `Nomba checkout/order failed: ${JSON.stringify(checkoutData)}` });
-    }
-
-    const checkoutLink = checkoutData.data?.checkoutLink;
-    if (!checkoutLink) {
-      return res.status(502).json({ error: 'Nomba returned no checkoutLink in response' });
-    }
-
-    await db.run(
-      "UPDATE transactions SET status = ?, payment_address = ? WHERE reference = ?",
-      ['PAYMENT_PENDING', checkoutLink, transactionId]
-    );
-
-    return res.json({
-      status: 'success',
-      data: {
-        id: transactionId,
-        reference: transactionId,
-        status: 'PAYMENT_PENDING',
-        checkoutUrl: checkoutLink,
-        amount: tx.gross_amount
-      }
-    });
-
-  } catch (err) {
-    console.error('[NOMBA PAY-INITIATE FATAL]', err);
     res.status(500).json({ error: err.message });
   }
 });
