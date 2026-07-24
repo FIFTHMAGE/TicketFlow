@@ -136,6 +136,9 @@
         localStorage.setItem('admin_role', data.role);
         localStorage.setItem('admin_username', data.username);
 
+        // Also store in cookie so that initial page loads bypass requireAdmin middleware redirects
+        document.cookie = `admin_token=${data.token}; path=/; SameSite=Strict`;
+
         window.location.href = '/admin/index.html';
       } catch (err) {
         errEl.textContent = 'Network error — is the server running?';
