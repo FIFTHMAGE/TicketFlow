@@ -13,6 +13,28 @@ window.addEventListener('DOMContentLoaded', () => {
   setInterval(() => {
     loadPublicStats();
   }, 3000);
+
+  // Check URL params for successful redirected callback (e.g. from Nomba callback)
+  const urlParams = new URLSearchParams(window.location.search);
+  const status = urlParams.get('status');
+  const ref = urlParams.get('ref');
+  if (status === 'success' && ref) {
+    // Open checkout modal in verified state
+    activeTransactionId = ref;
+    activePaymentGateway = 'nomba';
+    
+    // Clear URL parameters so reloading doesn't loop
+    window.history.replaceState({}, document.title, window.location.pathname);
+    
+    // Open modal directly on the payment success message screen
+    document.getElementById('checkout-modal').classList.add('active');
+    document.getElementById('checkout-step-init').classList.add('hidden');
+    document.getElementById('checkout-step-pay').classList.remove('hidden');
+    document.getElementById('checkout-title').innerText = 'Payment Confirmed';
+    
+    // Auto-verify status
+    checkPaymentStatus();
+  }
 });
 
 async function loadBasqetCurrencies() {
