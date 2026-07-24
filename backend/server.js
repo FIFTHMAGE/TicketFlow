@@ -495,6 +495,9 @@ app.delete('/api/reserve/:id', async (req, res) => {
 
 
 app.get(['/api/public-stats', '/api-v1/public-stats'], async (req, res) => {
+  // Instruct CDN edge & browsers to cache stats for 10 seconds
+  res.setHeader('Cache-Control', 'public, max-age=10, s-maxage=10, stale-while-revalidate=30');
+
   try {
     const pool    = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'SETTLEMENT_POOL'");
     const revenue = await db.get("SELECT balance FROM ledger_accounts WHERE id = 'PLATFORM_REVENUE'");
