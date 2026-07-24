@@ -6,18 +6,22 @@
       "use": "@vercel/node"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api-v1/(.*)",
-      "dest": "/backend/server.js"
+      "source": "/api-v1/:path*",
+      "destination": "/backend/server.js"
     },
     {
-      "src": "/admin/(.*)",
-      "dest": "/backend/server.js"
+      "source": "/api/:path*",
+      "destination": "/backend/server.js"
     },
     {
-      "src": "/(.*)",
-      "dest": "/backend/server.js"
+      "source": "/admin/:path*",
+      "destination": "/backend/server.js"
+    },
+    {
+      "source": "/portal/:path*",
+      "destination": "/backend/server.js"
     }
   ]
 }
